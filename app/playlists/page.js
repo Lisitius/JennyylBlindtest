@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import VolumeSlider from "@/components/VolumeSlider";
 
 const THEMES = [
   { key: "70s", label: "Années 70", emoji: "🕺", desc: "Disco, funk & soul" },
@@ -81,6 +82,13 @@ export default function PlaylistsPage() {
           ← Accueil
         </button>
       </header>
+
+      <div className="mb-10 flex flex-col gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line sm:flex-row sm:items-center sm:gap-6 animate-fadein">
+        <span className="shrink-0 text-lg font-bold text-zinc-300">
+          🔊 Volume du son
+        </span>
+        <VolumeSlider className="w-full max-w-md" />
+      </div>
 
       <section className="mb-12 animate-fadein">
         <h2 className="mb-5 text-2xl font-bold text-zinc-300">Thèmes</h2>

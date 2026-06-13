@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isCorrectAnswer } from "@/lib/normalize";
+import VolumeSlider, { getStoredVolume } from "@/components/VolumeSlider";
 
 const ROUND_SECONDS = 30;
 const TRANSITION_SECONDS = 5;
@@ -48,6 +49,7 @@ export default function GameClient() {
   const inputRef = useRef(null);
   const roundEndedRef = useRef(false);
   const roundStartRef = useRef(0);
+  const volumeRef = useRef(0.85);
 
   function fail(message) {
     setError(message);
@@ -94,10 +96,16 @@ export default function GameClient() {
     };
   }, []);
 
+  // ---- Volume mémorisé (réglé sur la page de choix ou ici) ----
+  useEffect(() => {
+    volumeRef.current = getStoredVolume();
+    if (audioRef.current) audioRef.current.volume = volumeRef.current;
+  }, []);
+
   // ---- Démarrage (le clic autorise le son dans le navigateur) ----
   function handleStart() {
     const audio = new Audio();
-    audio.volume = 0.85;
+    audio.volume = volumeRef.current;
     audioRef.current = audio;
     // Lecture muette immédiate pendant le clic : débloque l'audio pour la suite.
     audio.play().catch(() => {});
@@ -162,6 +170,12 @@ export default function GameClient() {
   function handleQuit() {
     audioRef.current?.pause();
     router.push("/playlists");
+  }
+
+  // ---- Réglage du volume (appliqué en direct au lecteur) ----
+  function handleVolumeChange(v) {
+    volumeRef.current = v;
+    if (audioRef.current) audioRef.current.volume = v;
   }
 
   // ---- Fin de manche (bonne réponse ou temps écoulé) ----
@@ -301,6 +315,9 @@ export default function GameClient() {
             {tracks.length} extraits · {ROUND_SECONDS} secondes par titre
           </p>
         </div>
+        <div className="flex w-full max-w-md items-center gap-3 rounded-2xl bg-jenny-surface/60 p-4 ring-1 ring-jenny-line">
+          <VolumeSlider className="w-full" onChange={handleVolumeChange} />
+        </div>
         <button
           onClick={handleStart}
           className="rounded-full bg-gradient-to-r from-jenny to-jenny-pink px-14 py-6 text-3xl font-black text-white shadow-lg shadow-jenny/40 transition hover:scale-105 hover:brightness-110 animate-pop"
@@ -308,7 +325,7 @@ export default function GameClient() {
           C'est parti ! 🚀
         </button>
         <p className="max-w-md text-sm text-zinc-500">
-          Monte le son ! 🔊
+          Règle le volume puis monte le son ! 🔊
         </p>
       </main>
     );
@@ -333,6 +350,11 @@ export default function GameClient() {
         <span className="whitespace-nowrap">
           Score : <span className="text-jenny">{score}</span>
         </span>
+      </div>
+
+      {/* Réglage du volume pendant la partie */}
+      <div className="mt-3 flex w-full max-w-3xl items-center gap-2">
+        <VolumeSlider className="w-full" onChange={handleVolumeChange} />
       </div>
 
       <div className="flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-10">
@@ -423,8 +445,12 @@ export default function GameClient() {
           ref={inputRef}
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          onBlur={() => {
-            if (phase === "playing")
+          onBlur={(e) => {
+            // Ne pas reprendre le focus si l'utilisateur règle le volume.
+            if (
+              phase === "playing" &&
+              !e.relatedTarget?.classList?.contains("volume-range")
+            )
               setTimeout(() => inputRef.current?.focus(), 10);
           }}
           disabled={phase !== "playing"}
