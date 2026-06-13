@@ -36,6 +36,7 @@ function SelectMark() {
 export default function PlaylistsPage() {
   const router = useRouter();
   const [selected, setSelected] = useState(null);
+  const [titleOnly, setTitleOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
@@ -66,7 +67,10 @@ export default function PlaylistsPage() {
       : selected.artist
         ? `artist=${selected.artist}`
         : `playlist=${selected.playlist}`;
-    router.push(`/game?${qs}&name=${encodeURIComponent(selected.name)}`);
+    const modeQs = titleOnly ? "&mode=title" : "";
+    router.push(
+      `/game?${qs}&name=${encodeURIComponent(selected.name)}${modeQs}`
+    );
   }
 
   return (
@@ -83,11 +87,42 @@ export default function PlaylistsPage() {
         </button>
       </header>
 
-      <div className="mb-10 flex flex-col gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line sm:flex-row sm:items-center sm:gap-6 animate-fadein">
+      <div className="mb-5 flex flex-col gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line sm:flex-row sm:items-center sm:gap-6 animate-fadein">
         <span className="shrink-0 text-lg font-bold text-zinc-300">
           🔊 Volume du son
         </span>
         <VolumeSlider className="w-full max-w-md" />
+      </div>
+
+      <div className="mb-10 flex flex-col gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line sm:flex-row sm:items-center sm:justify-between sm:gap-6 animate-fadein">
+        <div>
+          <span className="text-lg font-bold text-zinc-300">🎯 Mode de jeu</span>
+          <p className="text-sm text-zinc-500">
+            Passe en « Titre seul » pour les playlists d'un seul artiste.
+          </p>
+        </div>
+        <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
+          <button
+            onClick={() => setTitleOnly(false)}
+            className={`rounded-full px-5 py-2 text-sm font-bold transition ${
+              !titleOnly
+                ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            Titre + Artiste
+          </button>
+          <button
+            onClick={() => setTitleOnly(true)}
+            className={`rounded-full px-5 py-2 text-sm font-bold transition ${
+              titleOnly
+                ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            Titre seul
+          </button>
+        </div>
       </div>
 
       <section className="mb-12 animate-fadein">

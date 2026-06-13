@@ -51,8 +51,12 @@ export default function ResultsPage() {
           </span>
         </div>
         <p className="mt-2 text-xl font-semibold text-zinc-400">
-          🎵 {results.titlesFound ?? 0} / {results.total} titres{"  ·  "}
-          🎤 {results.artistsFound ?? 0} / {results.total} artistes
+          🎵 {results.titlesFound ?? 0} / {results.total} titres
+          {!results.titleOnly && (
+            <>
+              {"  ·  "}🎤 {results.artistsFound ?? 0} / {results.total} artistes
+            </>
+          )}
         </p>
         <p className="mt-4 text-2xl font-semibold">
           {scoreMessage(
@@ -105,12 +109,14 @@ export default function ResultsPage() {
                 >
                   🎵
                 </span>
-                <span
-                  title="Artiste"
-                  className={item.foundArtist ? "" : "opacity-25 grayscale"}
-                >
-                  🎤
-                </span>
+                {!results.titleOnly && (
+                  <span
+                    title="Artiste"
+                    className={item.foundArtist ? "" : "opacity-25 grayscale"}
+                  >
+                    🎤
+                  </span>
+                )}
               </div>
             </div>
           </div>

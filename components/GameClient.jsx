@@ -36,6 +36,10 @@ export default function GameClient() {
   const playlistId = params.get("playlist");
   const playlistName = params.get("name") || "Blindtest";
   const replayQuery = params.toString();
+  // Mode "titre seul" : pour les playlists d'un seul artiste, on ne cherche
+  // que le titre, qui vaut alors la totalité des points.
+  const titleOnly = params.get("mode") === "title";
+  const titlePointsMax = titleOnly ? MAX_POINTS : POINTS_TITLE;
 
   // phase : loading -> ready -> transition -> playing -> reveal -> (boucle) -> /results
   const [phase, setPhase] = useState("loading");
@@ -212,13 +216,17 @@ export default function GameClient() {
     });
     setLastPoints(r.points);
     setLastResult(
-      r.title && r.artist
-        ? "both"
-        : r.title
-          ? "title"
-          : r.artist
-            ? "artist"
-            : "none"
+      titleOnly
+        ? r.title
+          ? "both"
+          : "none"
+        : r.title && r.artist
+          ? "both"
+          : r.title
+            ? "title"
+            : r.artist
+              ? "artist"
+              : "none"
     );
     setPhase("reveal");
   }
@@ -255,6 +263,7 @@ export default function GameClient() {
             replayQuery,
             playlistName,
             total: tracks.length,
+            titleOnly,
             titlesFound: items.filter((i) => i.foundTitle).length,
             artistsFound: items.filter((i) => i.foundArtist).length,
             score: items.reduce((sum, i) => sum + (i.points || 0), 0),
@@ -287,14 +296,14 @@ export default function GameClient() {
       (isCorrectAnswer(answer, track.matchName || track.name) ||
         isCorrectAnswer(answer, track.name))
     ) {
-      const pts = partPoints(elapsed, POINTS_TITLE);
+      const pts = partPoints(elapsed, titlePointsMax);
       r.title = true;
       r.points += pts;
       gained += pts;
       parts.push(`🎵 Titre +${pts}`);
       setFoundTitle(true);
     }
-    if (!r.artist && isCorrectAnswer(answer, track.artists)) {
+    if (!titleOnly && !r.artist && isCorrectAnswer(answer, track.artists)) {
       const pts = partPoints(elapsed, POINTS_ARTIST);
       r.artist = true;
       r.points += pts;
@@ -307,7 +316,7 @@ export default function GameClient() {
       setScore((s) => s + gained);
       setAnswer("");
       setWrong(false);
-      if (r.title && r.artist) {
+      if (titleOnly ? r.title : r.title && r.artist) {
         finishRound();
       } else {
         setGood(`${parts.join("  ·  ")} — trouve l'autre !`);
@@ -327,7 +336,7 @@ export default function GameClient() {
   const barColor =
     timeLeft > 15 ? "bg-jenny" : timeLeft > 7 ? "bg-yellow-400" : "bg-red-500";
   const elapsedNow = ROUND_SECONDS - timeLeft;
-  const titlePotential = partPoints(elapsedNow, POINTS_TITLE);
+  const titlePotential = partPoints(elapsedNow, titlePointsMax);
   const artistPotential = partPoints(elapsedNow, POINTS_ARTIST);
 
   // ================= RENDU =================
@@ -434,7 +443,7 @@ export default function GameClient() {
             <div className="text-center">
               <div className="text-8xl animate-pulse">🎶</div>
               <p className="mt-4 text-2xl font-bold text-zinc-300">
-                Devine le titre et l'artiste
+                {titleOnly ? "Devine le titre" : "Devine le titre et l'artiste"}
               </p>
             </div>
 
@@ -454,20 +463,22 @@ export default function GameClient() {
                   <span className="text-jenny">{titlePotential} pts</span>
                 )}
               </div>
-              <div
-                className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
-                  foundArtist
-                    ? "bg-jenny/20 text-jenny-light ring-jenny"
-                    : "bg-zinc-900 text-zinc-300 ring-jenny-line"
-                }`}
-              >
-                🎤 Artiste{" "}
-                {foundArtist ? (
-                  <span className="text-jenny-light">✓</span>
-                ) : (
-                  <span className="text-jenny">{artistPotential} pts</span>
-                )}
-              </div>
+              {!titleOnly && (
+                <div
+                  className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
+                    foundArtist
+                      ? "bg-jenny/20 text-jenny-light ring-jenny"
+                      : "bg-zinc-900 text-zinc-300 ring-jenny-line"
+                  }`}
+                >
+                  🎤 Artiste{" "}
+                  {foundArtist ? (
+                    <span className="text-jenny-light">✓</span>
+                  ) : (
+                    <span className="text-jenny">{artistPotential} pts</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Timer */}
@@ -498,7 +509,9 @@ export default function GameClient() {
               <div>
                 <div className="text-5xl font-black text-jenny">
                   {lastResult === "both"
-                    ? "✅ Titre + artiste !"
+                    ? titleOnly
+                      ? "✅ Bonne réponse !"
+                      : "✅ Titre + artiste !"
                     : lastResult === "title"
                       ? "🎵 Titre trouvé !"
                       : "🎤 Artiste trouvé !"}
@@ -557,11 +570,13 @@ export default function GameClient() {
           placeholder={
             phase !== "playing"
               ? "…"
-              : foundTitle
-                ? "Trouve l'artiste…"
-                : foundArtist
-                  ? "Trouve le titre…"
-                  : "Tape le titre ou l'artiste…"
+              : titleOnly
+                ? "Tape le titre de la chanson…"
+                : foundTitle
+                  ? "Trouve l'artiste…"
+                  : foundArtist
+                    ? "Trouve le titre…"
+                    : "Tape le titre ou l'artiste…"
           }
           autoComplete="off"
           autoCorrect="off"
