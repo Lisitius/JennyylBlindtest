@@ -251,7 +251,7 @@ export default function GameClient() {
   const track = tracks?.[roundIndex];
   const progress = (timeLeft / ROUND_SECONDS) * 100;
   const barColor =
-    timeLeft > 15 ? "bg-spotify" : timeLeft > 7 ? "bg-yellow-400" : "bg-red-500";
+    timeLeft > 15 ? "bg-jenny" : timeLeft > 7 ? "bg-yellow-400" : "bg-red-500";
   const potentialPoints = pointsForElapsed(ROUND_SECONDS - timeLeft);
 
   // ================= RENDU =================
@@ -270,7 +270,7 @@ export default function GameClient() {
           </button>
           <button
             onClick={() => window.location.reload()}
-            className="rounded-full bg-spotify px-8 py-4 text-lg font-bold text-black transition hover:brightness-110"
+            className="rounded-full bg-gradient-to-r from-jenny to-jenny-pink px-8 py-4 text-lg font-bold text-white transition hover:brightness-110"
           >
             Réessayer
           </button>
@@ -282,7 +282,7 @@ export default function GameClient() {
   if (phase === "loading") {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-6">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-zinc-700 border-t-spotify" />
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-jenny-line border-t-jenny" />
         <p className="text-2xl text-zinc-400">Préparation du blindtest…</p>
       </main>
     );
@@ -300,7 +300,7 @@ export default function GameClient() {
         </div>
         <button
           onClick={handleStart}
-          className="rounded-full bg-spotify px-14 py-6 text-3xl font-black text-black transition hover:scale-105 hover:brightness-110 animate-pop"
+          className="rounded-full bg-gradient-to-r from-jenny to-jenny-pink px-14 py-6 text-3xl font-black text-white shadow-lg shadow-jenny/40 transition hover:scale-105 hover:brightness-110 animate-pop"
         >
           C'est parti ! 🚀
         </button>
@@ -328,7 +328,7 @@ export default function GameClient() {
           </span>
         </span>
         <span className="whitespace-nowrap">
-          Score : <span className="text-spotify">{score}</span>
+          Score : <span className="text-jenny">{score}</span>
         </span>
       </div>
 
@@ -338,7 +338,7 @@ export default function GameClient() {
             <p className="text-2xl text-zinc-400">Prochaine musique dans…</p>
             <div
               key={countdown}
-              className="mt-6 text-9xl font-black text-spotify animate-pop"
+              className="mt-6 text-9xl font-black text-gradient animate-pop"
             >
               {countdown}
             </div>
@@ -366,7 +366,7 @@ export default function GameClient() {
                 <span className="text-3xl font-black tabular-nums">
                   {Math.ceil(timeLeft)}s
                 </span>
-                <span className="rounded-full bg-zinc-800 px-4 py-1 text-lg font-bold text-spotify">
+                <span className="rounded-full bg-jenny/15 px-4 py-1 text-lg font-bold text-jenny-light">
                   Vaut {potentialPoints} pt{potentialPoints > 1 ? "s" : ""}
                 </span>
               </div>
@@ -381,7 +381,7 @@ export default function GameClient() {
           <div className="flex flex-col items-center gap-6 text-center animate-pop">
             {lastResult === "correct" ? (
               <div>
-                <div className="text-5xl font-black text-spotify">
+                <div className="text-5xl font-black text-jenny">
                   ✅ Bonne réponse !
                 </div>
                 <div className="mt-2 text-2xl font-bold text-white">
@@ -434,7 +434,7 @@ export default function GameClient() {
           className={`w-full rounded-2xl border-4 bg-zinc-900 px-8 py-6 text-center text-3xl font-bold text-white placeholder-zinc-600 outline-none transition disabled:opacity-40 ${
             wrong
               ? "border-red-500 animate-shake"
-              : "border-violet-500 focus:border-spotify focus:shadow-lg focus:shadow-spotify/20"
+              : "border-jenny/50 focus:border-jenny focus:shadow-lg focus:shadow-jenny/40"
           }`}
         />
       </form>

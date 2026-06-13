@@ -31,7 +31,7 @@ export default function ResultsPage() {
   if (!results) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-zinc-700 border-t-spotify" />
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-jenny-line border-t-jenny" />
       </main>
     );
   }
@@ -43,7 +43,7 @@ export default function ResultsPage() {
         <h1 className="mt-4 text-3xl font-bold text-zinc-300">
           {results.playlistName}
         </h1>
-        <div className="mt-6 text-8xl font-black text-spotify">
+        <div className="mt-6 text-8xl font-black text-gradient">
           {results.score}
           <span className="text-5xl text-zinc-500">
             {" "}
@@ -67,8 +67,8 @@ export default function ResultsPage() {
             key={i}
             className={`flex items-center gap-4 rounded-2xl p-4 animate-fadein ${
               item.found
-                ? "bg-green-950/40 ring-1 ring-green-800"
-                : "bg-zinc-900 ring-1 ring-zinc-800"
+                ? "bg-jenny/10 ring-1 ring-jenny/40"
+                : "bg-zinc-900/70 ring-1 ring-zinc-800"
             }`}
             style={{ animationDelay: `${i * 60}ms` }}
           >
@@ -91,7 +91,7 @@ export default function ResultsPage() {
             <div
               className={`shrink-0 rounded-full px-4 py-2 text-sm font-black ${
                 item.found
-                  ? "bg-spotify text-black"
+                  ? "bg-jenny text-white"
                   : "bg-zinc-800 text-zinc-400"
               }`}
             >
@@ -104,7 +104,7 @@ export default function ResultsPage() {
       <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
         <button
           onClick={() => router.push(`/game?${results.replayQuery}`)}
-          className="w-full rounded-full bg-spotify px-10 py-5 text-2xl font-black text-black transition hover:scale-105 hover:brightness-110 sm:w-auto"
+          className="w-full rounded-full bg-gradient-to-r from-jenny to-jenny-pink px-10 py-5 text-2xl font-black text-white shadow-lg shadow-jenny/40 transition hover:scale-105 hover:brightness-110 sm:w-auto"
         >
           🔁 Rejouer
         </button>

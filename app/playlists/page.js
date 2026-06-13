@@ -26,7 +26,7 @@ const THEMES = [
 
 function SelectMark() {
   return (
-    <div className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-spotify text-xl font-black text-black animate-pop">
+    <div className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-jenny text-xl font-black text-white animate-pop">
       ✓
     </div>
   );
@@ -71,7 +71,9 @@ export default function PlaylistsPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 pb-40 pt-10">
       <header className="mb-10 flex items-center justify-between">
-        <h1 className="text-4xl font-black">🎧 Choisis ton blindtest</h1>
+        <h1 className="text-4xl font-black">
+          🐨 <span className="text-gradient">Choisis ton blindtest</span>
+        </h1>
         <button
           onClick={() => router.push("/")}
           className="rounded-full bg-zinc-800 px-5 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-700"
@@ -82,21 +84,21 @@ export default function PlaylistsPage() {
 
       <section className="mb-12 animate-fadein">
         <h2 className="mb-5 text-2xl font-bold text-zinc-300">Thèmes</h2>
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {THEMES.map((t) => (
             <button
               key={t.key}
               onClick={() => setSelected({ theme: t.key, name: t.label })}
-              className={`group relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 p-6 text-center transition hover:from-zinc-700 hover:to-zinc-800 hover:scale-[1.02] ${
+              className={`group relative flex flex-col items-center gap-1 overflow-hidden rounded-xl bg-gradient-to-br from-jenny-surface to-jenny-deep p-3 text-center transition hover:from-jenny-dark/40 hover:to-jenny-surface hover:scale-[1.03] ${
                 selected?.theme === t.key
-                  ? "ring-4 ring-spotify shadow-lg shadow-spotify/20"
-                  : "ring-1 ring-zinc-800"
+                  ? "ring-2 ring-jenny shadow-lg shadow-jenny/30"
+                  : "ring-1 ring-jenny-line"
               }`}
             >
               {selected?.theme === t.key && <SelectMark />}
-              <div className="text-6xl">{t.emoji}</div>
-              <div className="text-xl font-black">{t.label}</div>
-              <div className="text-sm text-zinc-400">{t.desc}</div>
+              <div className="text-4xl">{t.emoji}</div>
+              <div className="text-sm font-black leading-tight">{t.label}</div>
+              <div className="text-xs leading-tight text-zinc-400">{t.desc}</div>
             </button>
           ))}
         </div>
@@ -111,7 +113,7 @@ export default function PlaylistsPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ex: Lorie, Pop, Rock, soirée karaoké etc..."
-            className="w-full rounded-2xl border-2 border-zinc-700 bg-zinc-900 px-6 py-4 text-xl font-semibold text-white placeholder-zinc-600 outline-none transition focus:border-spotify"
+            className="w-full rounded-2xl border-2 border-jenny-line bg-jenny-surface/60 px-6 py-4 text-xl font-semibold text-white placeholder-zinc-500 outline-none transition focus:border-jenny"
           />
           <button
             type="submit"
@@ -144,7 +146,7 @@ export default function PlaylistsPage() {
                       }
                       className={`group relative flex flex-col items-center gap-3 rounded-2xl bg-zinc-900 p-4 transition hover:bg-zinc-800 hover:scale-[1.02] ${
                         selected?.artist === a.id
-                          ? "ring-4 ring-spotify"
+                          ? "ring-4 ring-jenny"
                           : "ring-1 ring-zinc-800"
                       }`}
                     >
@@ -184,7 +186,7 @@ export default function PlaylistsPage() {
                       }
                       className={`group relative flex flex-col overflow-hidden rounded-2xl bg-zinc-900 text-left transition hover:bg-zinc-800 hover:scale-[1.02] ${
                         selected?.playlist === p.id
-                          ? "ring-4 ring-spotify"
+                          ? "ring-4 ring-jenny"
                           : "ring-1 ring-zinc-800"
                       }`}
                     >
@@ -227,7 +229,7 @@ export default function PlaylistsPage() {
       </section>
 
       {selected && (
-        <div className="fixed inset-x-0 bottom-0 border-t border-zinc-800 bg-zinc-950/95 p-5 backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 border-t border-jenny-line bg-jenny-deep/95 p-5 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-6">
             <div className="min-w-0">
               <div className="text-sm text-zinc-400">Sélection</div>
@@ -235,7 +237,7 @@ export default function PlaylistsPage() {
             </div>
             <button
               onClick={launch}
-              className="shrink-0 rounded-full bg-spotify px-8 py-4 text-xl font-black text-black transition hover:scale-105 hover:brightness-110"
+              className="shrink-0 rounded-full bg-gradient-to-r from-jenny to-jenny-pink px-8 py-4 text-xl font-black text-white shadow-lg shadow-jenny/40 transition hover:scale-105 hover:brightness-110"
             >
               Lancer le blindtest →
             </button>
