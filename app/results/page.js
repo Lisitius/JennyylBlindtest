@@ -51,8 +51,8 @@ export default function ResultsPage() {
           </span>
         </div>
         <p className="mt-2 text-xl font-semibold text-zinc-400">
-          {results.foundCount ?? results.items.filter((i) => i.found).length} /{" "}
-          {results.total} bonnes réponses
+          🎵 {results.titlesFound ?? 0} / {results.total} titres{"  ·  "}
+          🎤 {results.artistsFound ?? 0} / {results.total} artistes
         </p>
         <p className="mt-4 text-2xl font-semibold">
           {scoreMessage(
@@ -66,7 +66,7 @@ export default function ResultsPage() {
           <div
             key={i}
             className={`flex items-center gap-4 rounded-2xl p-4 animate-fadein ${
-              item.found
+              item.points > 0
                 ? "bg-jenny/10 ring-1 ring-jenny/40"
                 : "bg-zinc-900/70 ring-1 ring-zinc-800"
             }`}
@@ -88,14 +88,30 @@ export default function ResultsPage() {
               <div className="truncate text-xl font-bold">{item.name}</div>
               <div className="truncate text-zinc-400">{item.artists}</div>
             </div>
-            <div
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-black ${
-                item.found
-                  ? "bg-jenny text-white"
-                  : "bg-zinc-800 text-zinc-400"
-              }`}
-            >
-              {item.found ? `+${item.points ?? 1} pts` : "✗ Manqué"}
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <div
+                className={`rounded-full px-4 py-2 text-sm font-black ${
+                  item.points > 0
+                    ? "bg-jenny text-white"
+                    : "bg-zinc-800 text-zinc-400"
+                }`}
+              >
+                {item.points > 0 ? `+${item.points} pts` : "✗ 0 pt"}
+              </div>
+              <div className="flex gap-1 text-base">
+                <span
+                  title="Titre"
+                  className={item.foundTitle ? "" : "opacity-25 grayscale"}
+                >
+                  🎵
+                </span>
+                <span
+                  title="Artiste"
+                  className={item.foundArtist ? "" : "opacity-25 grayscale"}
+                >
+                  🎤
+                </span>
+              </div>
             </div>
           </div>
         ))}

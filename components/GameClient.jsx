@@ -11,15 +11,21 @@ const FIRST_TRANSITION_SECONDS = 3;
 const REVEAL_CORRECT_MS = 2000;
 const REVEAL_TIMEOUT_MS = 4000;
 const NB_TRACKS = 10;
-const MAX_POINTS = 10;
+const POINTS_TITLE = 5; // points max pour le titre
+const POINTS_ARTIST = 5; // points max pour l'artiste
+const MAX_POINTS = POINTS_TITLE + POINTS_ARTIST; // total par titre (10)
 const FULL_POINTS_SECONDS = 6; // fenêtre où la réponse vaut le maximum
 
-// Points selon la rapidité : 10 pendant les 6 premières secondes, puis -1 par
-// tranche de 3 s, minimum 1.
-function pointsForElapsed(elapsedSeconds) {
-  if (elapsedSeconds < FULL_POINTS_SECONDS) return MAX_POINTS;
-  const p = MAX_POINTS - 1 - Math.floor((elapsedSeconds - FULL_POINTS_SECONDS) / 3);
-  return Math.max(1, Math.min(MAX_POINTS, p));
+// Facteur de rapidité (1 à 10) : plein pendant 6 s, puis -1 cran toutes les 3 s.
+function speedFactor(elapsedSeconds) {
+  if (elapsedSeconds < FULL_POINTS_SECONDS) return 10;
+  const p = 10 - 1 - Math.floor((elapsedSeconds - FULL_POINTS_SECONDS) / 3);
+  return Math.max(1, Math.min(10, p));
+}
+
+// Points gagnés pour une partie (titre ou artiste) selon la rapidité.
+function partPoints(elapsedSeconds, partMax) {
+  return Math.max(1, Math.round((speedFactor(elapsedSeconds) / 10) * partMax));
 }
 
 export default function GameClient() {
@@ -40,7 +46,10 @@ export default function GameClient() {
   const [score, setScore] = useState(0);
   const [answer, setAnswer] = useState("");
   const [wrong, setWrong] = useState(false);
-  const [lastResult, setLastResult] = useState(null); // "correct" | "timeout"
+  const [good, setGood] = useState(""); // message vert quand une partie est trouvée
+  const [foundTitle, setFoundTitle] = useState(false);
+  const [foundArtist, setFoundArtist] = useState(false);
+  const [lastResult, setLastResult] = useState(null); // "both" | "title" | "artist" | "none"
   const [lastPoints, setLastPoints] = useState(0);
   const [error, setError] = useState(null);
 
@@ -50,6 +59,8 @@ export default function GameClient() {
   const roundEndedRef = useRef(false);
   const roundStartRef = useRef(0);
   const volumeRef = useRef(0.85);
+  // Source de vérité de la manche, lisible depuis le timer :
+  const roundRef = useRef({ title: false, artist: false, points: 0 });
 
   function fail(message) {
     setError(message);
@@ -137,6 +148,11 @@ export default function GameClient() {
           }
           roundEndedRef.current = false;
           roundStartRef.current = Date.now();
+          roundRef.current = { title: false, artist: false, points: 0 };
+          setFoundTitle(false);
+          setFoundArtist(false);
+          setGood("");
+          setWrong(false);
           setAnswer("");
           setLastResult(null);
           setTimeLeft(ROUND_SECONDS);
@@ -178,23 +194,32 @@ export default function GameClient() {
     if (audioRef.current) audioRef.current.volume = v;
   }
 
-  // ---- Fin de manche (bonne réponse ou temps écoulé) ----
-  function endRound(found, points = 0) {
+  // ---- Fin de manche (les deux trouvés ou temps écoulé) ----
+  // Les points sont déjà ajoutés au fur et à mesure dans handleSubmit.
+  function finishRound() {
     if (roundEndedRef.current) return;
     roundEndedRef.current = true;
     audioRef.current?.pause();
     const track = tracks[roundIndex];
-    const earned = found ? points : 0;
+    const r = roundRef.current;
     resultsRef.current.push({
       name: track.name,
       artists: track.artists,
       image: track.image,
-      found,
-      points: earned,
+      foundTitle: r.title,
+      foundArtist: r.artist,
+      points: r.points,
     });
-    if (earned) setScore((s) => s + earned);
-    setLastPoints(earned);
-    setLastResult(found ? "correct" : "timeout");
+    setLastPoints(r.points);
+    setLastResult(
+      r.title && r.artist
+        ? "both"
+        : r.title
+          ? "title"
+          : r.artist
+            ? "artist"
+            : "none"
+    );
     setPhase("reveal");
   }
 
@@ -208,7 +233,7 @@ export default function GameClient() {
       if (left <= 0) {
         clearInterval(int);
         setTimeLeft(0);
-        endRound(false, 0);
+        finishRound();
       } else {
         setTimeLeft(left);
       }
@@ -220,7 +245,7 @@ export default function GameClient() {
   // ---- Affichage de la réponse puis manche suivante / résultats ----
   useEffect(() => {
     if (phase !== "reveal" || !tracks) return;
-    const ms = lastResult === "correct" ? REVEAL_CORRECT_MS : REVEAL_TIMEOUT_MS;
+    const ms = lastResult === "both" ? REVEAL_CORRECT_MS : REVEAL_TIMEOUT_MS;
     const t = setTimeout(() => {
       if (roundIndex + 1 >= tracks.length) {
         const items = resultsRef.current;
@@ -230,7 +255,8 @@ export default function GameClient() {
             replayQuery,
             playlistName,
             total: tracks.length,
-            foundCount: items.filter((i) => i.found).length,
+            titlesFound: items.filter((i) => i.foundTitle).length,
+            artistsFound: items.filter((i) => i.foundArtist).length,
             score: items.reduce((sum, i) => sum + (i.points || 0), 0),
             maxPoints: tracks.length * MAX_POINTS,
             items,
@@ -246,17 +272,48 @@ export default function GameClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, lastResult, roundIndex, tracks]);
 
-  // ---- Soumission d'une réponse ----
+  // ---- Soumission d'une réponse (titre et/ou artiste) ----
   function handleSubmit(e) {
     e.preventDefault();
     if (phase !== "playing" || !answer.trim()) return;
     const track = tracks[roundIndex];
+    const r = roundRef.current;
+    const elapsed = (Date.now() - roundStartRef.current) / 1000;
+
+    let gained = 0;
+    const parts = [];
     if (
-      isCorrectAnswer(answer, track.matchName || track.name) ||
-      isCorrectAnswer(answer, track.name)
+      !r.title &&
+      (isCorrectAnswer(answer, track.matchName || track.name) ||
+        isCorrectAnswer(answer, track.name))
     ) {
-      const elapsed = (Date.now() - roundStartRef.current) / 1000;
-      endRound(true, pointsForElapsed(elapsed));
+      const pts = partPoints(elapsed, POINTS_TITLE);
+      r.title = true;
+      r.points += pts;
+      gained += pts;
+      parts.push(`🎵 Titre +${pts}`);
+      setFoundTitle(true);
+    }
+    if (!r.artist && isCorrectAnswer(answer, track.artists)) {
+      const pts = partPoints(elapsed, POINTS_ARTIST);
+      r.artist = true;
+      r.points += pts;
+      gained += pts;
+      parts.push(`🎤 Artiste +${pts}`);
+      setFoundArtist(true);
+    }
+
+    if (gained > 0) {
+      setScore((s) => s + gained);
+      setAnswer("");
+      setWrong(false);
+      if (r.title && r.artist) {
+        finishRound();
+      } else {
+        setGood(`${parts.join("  ·  ")} — trouve l'autre !`);
+        setTimeout(() => setGood(""), 2500);
+        inputRef.current?.focus();
+      }
     } else {
       setWrong(true);
       setAnswer("");
@@ -269,7 +326,9 @@ export default function GameClient() {
   const progress = (timeLeft / ROUND_SECONDS) * 100;
   const barColor =
     timeLeft > 15 ? "bg-jenny" : timeLeft > 7 ? "bg-yellow-400" : "bg-red-500";
-  const potentialPoints = pointsForElapsed(ROUND_SECONDS - timeLeft);
+  const elapsedNow = ROUND_SECONDS - timeLeft;
+  const titlePotential = partPoints(elapsedNow, POINTS_TITLE);
+  const artistPotential = partPoints(elapsedNow, POINTS_ARTIST);
 
   // ================= RENDU =================
 
@@ -375,8 +434,40 @@ export default function GameClient() {
             <div className="text-center">
               <div className="text-8xl animate-pulse">🎶</div>
               <p className="mt-4 text-2xl font-bold text-zinc-300">
-                Quel est ce titre ?
+                Devine le titre et l'artiste
               </p>
+            </div>
+
+            {/* Indicateurs titre / artiste */}
+            <div className="flex w-full justify-center gap-4">
+              <div
+                className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
+                  foundTitle
+                    ? "bg-jenny/20 text-jenny-light ring-jenny"
+                    : "bg-zinc-900 text-zinc-300 ring-jenny-line"
+                }`}
+              >
+                🎵 Titre{" "}
+                {foundTitle ? (
+                  <span className="text-jenny-light">✓</span>
+                ) : (
+                  <span className="text-jenny">{titlePotential} pts</span>
+                )}
+              </div>
+              <div
+                className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
+                  foundArtist
+                    ? "bg-jenny/20 text-jenny-light ring-jenny"
+                    : "bg-zinc-900 text-zinc-300 ring-jenny-line"
+                }`}
+              >
+                🎤 Artiste{" "}
+                {foundArtist ? (
+                  <span className="text-jenny-light">✓</span>
+                ) : (
+                  <span className="text-jenny">{artistPotential} pts</span>
+                )}
+              </div>
             </div>
 
             {/* Timer */}
@@ -387,13 +478,8 @@ export default function GameClient() {
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="mt-2 flex items-center justify-center gap-4">
-                <span className="text-3xl font-black tabular-nums">
-                  {Math.ceil(timeLeft)}s
-                </span>
-                <span className="rounded-full bg-jenny/15 px-4 py-1 text-lg font-bold text-jenny-light">
-                  Vaut {potentialPoints} pt{potentialPoints > 1 ? "s" : ""}
-                </span>
+              <div className="mt-2 text-center text-3xl font-black tabular-nums">
+                {Math.ceil(timeLeft)}s
               </div>
               <p className="mt-1 text-center text-sm text-zinc-500">
                 Plus tu réponds vite, plus tu marques de points
@@ -404,18 +490,27 @@ export default function GameClient() {
 
         {phase === "reveal" && track && (
           <div className="flex flex-col items-center gap-6 text-center animate-pop">
-            {lastResult === "correct" ? (
+            {lastResult === "none" ? (
+              <div className="text-5xl font-black text-red-400">
+                ⏱️ Temps écoulé !
+              </div>
+            ) : (
               <div>
                 <div className="text-5xl font-black text-jenny">
-                  ✅ Bonne réponse !
+                  {lastResult === "both"
+                    ? "✅ Titre + artiste !"
+                    : lastResult === "title"
+                      ? "🎵 Titre trouvé !"
+                      : "🎤 Artiste trouvé !"}
                 </div>
+                {lastResult !== "both" && (
+                  <div className="mt-1 text-lg font-semibold text-zinc-400">
+                    {lastResult === "title" ? "Artiste manqué" : "Titre manqué"}
+                  </div>
+                )}
                 <div className="mt-2 text-2xl font-bold text-white">
                   +{lastPoints} point{lastPoints > 1 ? "s" : ""}
                 </div>
-              </div>
-            ) : (
-              <div className="text-5xl font-black text-red-400">
-                ⏱️ Temps écoulé !
               </div>
             )}
             {track.image && (
@@ -436,6 +531,11 @@ export default function GameClient() {
 
       {/* Barre de réponse — toujours visible, impossible à rater */}
       <form onSubmit={handleSubmit} className="w-full max-w-3xl pb-6">
+        {good && (
+          <p className="mb-2 text-center text-lg font-bold text-jenny-light animate-fadein">
+            {good}
+          </p>
+        )}
         {wrong && (
           <p className="mb-2 text-center text-lg font-semibold text-red-400 animate-fadein">
             Raté, réessaie !
@@ -455,7 +555,13 @@ export default function GameClient() {
           }}
           disabled={phase !== "playing"}
           placeholder={
-            phase === "playing" ? "Tape le titre de la chanson…" : "…"
+            phase !== "playing"
+              ? "…"
+              : foundTitle
+                ? "Trouve l'artiste…"
+                : foundArtist
+                  ? "Trouve le titre…"
+                  : "Tape le titre ou l'artiste…"
           }
           autoComplete="off"
           autoCorrect="off"
