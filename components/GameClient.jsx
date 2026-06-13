@@ -11,10 +11,13 @@ const REVEAL_CORRECT_MS = 2000;
 const REVEAL_TIMEOUT_MS = 4000;
 const NB_TRACKS = 10;
 const MAX_POINTS = 10;
+const FULL_POINTS_SECONDS = 6; // fenêtre où la réponse vaut le maximum
 
-// Points selon la rapidité : 10 max, puis -1 par tranche de 3 s, minimum 1.
+// Points selon la rapidité : 10 pendant les 6 premières secondes, puis -1 par
+// tranche de 3 s, minimum 1.
 function pointsForElapsed(elapsedSeconds) {
-  const p = MAX_POINTS - Math.floor(elapsedSeconds / 3);
+  if (elapsedSeconds < FULL_POINTS_SECONDS) return MAX_POINTS;
+  const p = MAX_POINTS - 1 - Math.floor((elapsedSeconds - FULL_POINTS_SECONDS) / 3);
   return Math.max(1, Math.min(MAX_POINTS, p));
 }
 
