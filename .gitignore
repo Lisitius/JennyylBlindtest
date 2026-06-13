@@ -1,0 +1,25 @@
+# Dépendances
+node_modules/
+
+# Build Next.js
+.next/
+out/
+build/
+
+# Variables d'environnement (clés secrètes — ne jamais publier)
+.env
+.env.local
+.env*.local
+
+# Config locale de l'éditeur / Claude Code
+.claude/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Divers
+.DS_Store
+.vercel
