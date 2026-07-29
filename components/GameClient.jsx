@@ -64,6 +64,7 @@ export default function GameClient() {
   const [lastResult, setLastResult] = useState(null); // "both" | "title" | "artist" | "none"
   const [lastPoints, setLastPoints] = useState(0);
   const [error, setError] = useState(null);
+  const [history, setHistory] = useState([]); // manches terminées (affichage)
 
   const audioRef = useRef(null);
   const resultsRef = useRef([]);
@@ -134,6 +135,7 @@ export default function GameClient() {
     audio.play().catch(() => {});
     audio.pause();
     resultsRef.current = [];
+    setHistory([]);
     setScore(0);
     setRoundIndex(0);
     setPhase("transition");
@@ -222,6 +224,7 @@ export default function GameClient() {
       foundArtist: r.artist,
       points: r.points,
     });
+    setHistory([...resultsRef.current]);
     setLastPoints(r.points);
     setLastResult(
       titleOnly
@@ -436,6 +439,53 @@ export default function GameClient() {
       <div className="mt-3 flex w-full max-w-3xl items-center gap-2">
         <VolumeSlider className="w-full" onChange={handleVolumeChange} />
       </div>
+
+      {/* Historique des morceaux déjà passés */}
+      {history.length > 0 && (phase === "transition" || phase === "playing") && (
+        <div className="mt-3 w-full max-w-3xl">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
+            Historique
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[...history].reverse().map((h, i) => (
+              <div
+                key={history.length - i}
+                className="flex shrink-0 items-center gap-2 rounded-xl bg-zinc-900 px-3 py-2 ring-1 ring-jenny-line"
+              >
+                {h.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={h.image}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-zinc-800 text-sm">
+                    🎵
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="max-w-[130px] truncate text-xs font-bold">
+                    {h.name}
+                  </div>
+                  <div className="max-w-[130px] truncate text-[11px] text-zinc-400">
+                    {h.artists}
+                  </div>
+                </div>
+                <div
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-black ${
+                    h.points > 0
+                      ? "bg-jenny text-white"
+                      : "bg-zinc-800 text-zinc-400"
+                  }`}
+                >
+                  {h.points > 0 ? `+${h.points}` : "0"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-10">
         {phase === "transition" && (

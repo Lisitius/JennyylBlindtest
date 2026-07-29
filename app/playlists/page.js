@@ -127,55 +127,57 @@ export default function PlaylistsPage() {
         </div>
       </div>
 
-      <div className="mb-10 flex flex-col gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line sm:flex-row sm:items-center sm:justify-between sm:gap-6 animate-fadein">
-        <div>
-          <span className="text-lg font-bold text-zinc-300">
-            🎚️ Nombre de musiques
-          </span>
-          <p className="text-sm text-zinc-500">
-            Le nombre d'extraits par partie.
-          </p>
+      <div className="mb-10 flex flex-col gap-4 animate-fadein sm:flex-row">
+        <div className="flex flex-1 items-center justify-between gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line">
+          <div className="min-w-0">
+            <div className="text-base font-bold text-zinc-300">
+              🎚️ Nombre de musiques
+            </div>
+            <p className="text-xs text-zinc-500">
+              Le nombre d'extraits par partie.
+            </p>
+          </div>
+          <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
+            {[10, 15, 20].map((n) => (
+              <button
+                key={n}
+                onClick={() => setCount(n)}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  count === n
+                    ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
-          {[10, 15, 20].map((n) => (
-            <button
-              key={n}
-              onClick={() => setCount(n)}
-              className={`rounded-full px-6 py-2 text-sm font-bold transition ${
-                count === n
-                  ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      <div className="mb-10 flex flex-col gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line sm:flex-row sm:items-center sm:justify-between sm:gap-6 animate-fadein">
-        <div>
-          <span className="text-lg font-bold text-zinc-300">
-            ⏱️ Temps par chanson
-          </span>
-          <p className="text-sm text-zinc-500">
-            Le temps pour répondre à chaque extrait.
-          </p>
-        </div>
-        <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
-          {[15, 20, 30].map((n) => (
-            <button
-              key={n}
-              onClick={() => setDuration(n)}
-              className={`rounded-full px-5 py-2 text-sm font-bold transition ${
-                duration === n
-                  ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              {n}s
-            </button>
-          ))}
+        <div className="flex flex-1 items-center justify-between gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line">
+          <div className="min-w-0">
+            <div className="text-base font-bold text-zinc-300">
+              ⏱️ Temps par chanson
+            </div>
+            <p className="text-xs text-zinc-500">
+              Le temps pour répondre à chaque extrait.
+            </p>
+          </div>
+          <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
+            {[15, 20, 30].map((n) => (
+              <button
+                key={n}
+                onClick={() => setDuration(n)}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  duration === n
+                    ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                {n}s
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
