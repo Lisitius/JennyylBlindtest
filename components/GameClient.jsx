@@ -40,13 +40,21 @@ export default function GameClient() {
   // que le titre, qui vaut alors la totalité des points.
   const titleOnly = params.get("mode") === "title";
   const titlePointsMax = titleOnly ? MAX_POINTS : POINTS_TITLE;
+  // Nombre de musiques choisi (10, 15 ou 20), 10 par défaut.
+  const nbTracks = [10, 15, 20].includes(Number(params.get("count")))
+    ? Number(params.get("count"))
+    : NB_TRACKS;
+  // Temps de réponse par chanson (15, 20 ou 30 s), 30 par défaut.
+  const roundSeconds = [15, 20, 30].includes(Number(params.get("time")))
+    ? Number(params.get("time"))
+    : ROUND_SECONDS;
 
   // phase : loading -> ready -> transition -> playing -> reveal -> (boucle) -> /results
   const [phase, setPhase] = useState("loading");
   const [tracks, setTracks] = useState(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const [countdown, setCountdown] = useState(TRANSITION_SECONDS);
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(roundSeconds);
   const [score, setScore] = useState(0);
   const [answer, setAnswer] = useState("");
   const [wrong, setWrong] = useState(false);
@@ -74,11 +82,11 @@ export default function GameClient() {
   // ---- Chargement des morceaux ----
   useEffect(() => {
     const url = themeKey
-      ? `/api/deezer/theme-tracks?key=${themeKey}&count=${NB_TRACKS}`
+      ? `/api/deezer/theme-tracks?key=${themeKey}&count=${nbTracks}`
       : artistId
-        ? `/api/deezer/artist-tracks?id=${artistId}&count=${NB_TRACKS}`
+        ? `/api/deezer/artist-tracks?id=${artistId}&count=${nbTracks}`
         : playlistId
-          ? `/api/deezer/playlist-tracks?id=${playlistId}&count=${NB_TRACKS}`
+          ? `/api/deezer/playlist-tracks?id=${playlistId}&count=${nbTracks}`
           : null;
     if (!url) {
       fail("Aucun blindtest sélectionné.");
@@ -159,7 +167,7 @@ export default function GameClient() {
           setWrong(false);
           setAnswer("");
           setLastResult(null);
-          setTimeLeft(ROUND_SECONDS);
+          setTimeLeft(roundSeconds);
           setPhase("playing");
         })
         .catch(() => {
@@ -237,7 +245,7 @@ export default function GameClient() {
     inputRef.current?.focus();
     const started = Date.now();
     const int = setInterval(() => {
-      const left = ROUND_SECONDS - (Date.now() - started) / 1000;
+      const left = roundSeconds - (Date.now() - started) / 1000;
       if (left <= 0) {
         clearInterval(int);
         setTimeLeft(0);
@@ -332,10 +340,14 @@ export default function GameClient() {
   }
 
   const track = tracks?.[roundIndex];
-  const progress = (timeLeft / ROUND_SECONDS) * 100;
+  const progress = (timeLeft / roundSeconds) * 100;
   const barColor =
-    timeLeft > 15 ? "bg-jenny" : timeLeft > 7 ? "bg-yellow-400" : "bg-red-500";
-  const elapsedNow = ROUND_SECONDS - timeLeft;
+    timeLeft > roundSeconds * 0.5
+      ? "bg-jenny"
+      : timeLeft > roundSeconds * 0.25
+        ? "bg-yellow-400"
+        : "bg-red-500";
+  const elapsedNow = roundSeconds - timeLeft;
   const titlePotential = partPoints(elapsedNow, titlePointsMax);
   const artistPotential = partPoints(elapsedNow, POINTS_ARTIST);
 
@@ -380,7 +392,7 @@ export default function GameClient() {
           <div className="mb-4 text-7xl">🎵</div>
           <h1 className="text-4xl font-black">{playlistName}</h1>
           <p className="mt-3 text-xl text-zinc-400">
-            {tracks.length} extraits · {ROUND_SECONDS} secondes par titre
+            {tracks.length} extraits · {roundSeconds} secondes par titre
           </p>
         </div>
         <div className="flex w-full max-w-md items-center gap-3 rounded-2xl bg-jenny-surface/60 p-4 ring-1 ring-jenny-line">
