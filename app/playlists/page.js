@@ -36,7 +36,9 @@ function SelectMark() {
 export default function PlaylistsPage() {
   const router = useRouter();
   const [selected, setSelected] = useState(null);
-  const [titleOnly, setTitleOnly] = useState(false);
+  // full = titre + artiste (+ film) · title = titre seul
+  // title-film = titre + film · film = film seul
+  const [mode, setMode] = useState("full");
   const [count, setCount] = useState(10);
   const [duration, setDuration] = useState(30);
   const [query, setQuery] = useState("");
@@ -62,6 +64,22 @@ export default function PlaylistsPage() {
     }
   }
 
+  // Disney et Films & Séries ont un 3e champ à deviner : le film.
+  const isFilmTheme =
+    selected?.theme === "disney" || selected?.theme === "films";
+  const MODES = isFilmTheme
+    ? [
+        { key: "full", label: "Titre + artiste + film" },
+        { key: "title-film", label: "Titre + film" },
+        { key: "film", label: "Film" },
+      ]
+    : [
+        { key: "full", label: "Titre + Artiste" },
+        { key: "title", label: "Titre seul" },
+      ];
+  // Si le mode choisi n'existe pas pour cette sélection, on retombe sur "full".
+  const activeMode = MODES.some((m) => m.key === mode) ? mode : "full";
+
   function launch() {
     if (!selected) return;
     const qs = selected.theme
@@ -69,7 +87,7 @@ export default function PlaylistsPage() {
       : selected.artist
         ? `artist=${selected.artist}`
         : `playlist=${selected.playlist}`;
-    const modeQs = titleOnly ? "&mode=title" : "";
+    const modeQs = activeMode === "full" ? "" : `&mode=${activeMode}`;
     router.push(
       `/game?${qs}&name=${encodeURIComponent(selected.name)}&count=${count}&time=${duration}${modeQs}`
     );
@@ -100,30 +118,25 @@ export default function PlaylistsPage() {
         <div>
           <span className="text-lg font-bold text-zinc-300">🎯 Mode de jeu</span>
           <p className="text-sm text-zinc-500">
-            Passe en « Titre seul » pour les playlists d'un seul artiste.
+            {isFilmTheme
+              ? "Choisis ce qu'il faut deviner : le film compte comme réponse."
+              : "Passe en « Titre seul » pour les playlists d'un seul artiste."}
           </p>
         </div>
-        <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
-          <button
-            onClick={() => setTitleOnly(false)}
-            className={`rounded-full px-5 py-2 text-sm font-bold transition ${
-              !titleOnly
-                ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
-                : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            Titre + Artiste
-          </button>
-          <button
-            onClick={() => setTitleOnly(true)}
-            className={`rounded-full px-5 py-2 text-sm font-bold transition ${
-              titleOnly
-                ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
-                : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            Titre seul
-          </button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
+          {MODES.map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setMode(m.key)}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                activeMode === m.key
+                  ? "bg-gradient-to-r from-jenny to-jenny-pink text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -164,7 +177,7 @@ export default function PlaylistsPage() {
             </p>
           </div>
           <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
-            {[15, 20, 30].map((n) => (
+            {[5, 15, 20, 30].map((n) => (
               <button
                 key={n}
                 onClick={() => setDuration(n)}

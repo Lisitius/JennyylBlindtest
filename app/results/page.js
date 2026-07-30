@@ -51,10 +51,19 @@ export default function ResultsPage() {
           </span>
         </div>
         <p className="mt-2 text-xl font-semibold text-zinc-400">
-          🎵 {results.titlesFound ?? 0} / {results.total} titres
-          {!results.titleOnly && (
+          {(results.showTitle ?? true) && (
+            <>
+              🎵 {results.titlesFound ?? 0} / {results.total} titres
+            </>
+          )}
+          {results.showArtist && (
             <>
               {"  ·  "}🎤 {results.artistsFound ?? 0} / {results.total} artistes
+            </>
+          )}
+          {results.hasFilm && (
+            <>
+              {"  ·  "}🎬 {results.filmsFound ?? 0} / {results.total} films
             </>
           )}
         </p>
@@ -103,18 +112,28 @@ export default function ResultsPage() {
                 {item.points > 0 ? `+${item.points} pts` : "✗ 0 pt"}
               </div>
               <div className="flex gap-1 text-base">
-                <span
-                  title="Titre"
-                  className={item.foundTitle ? "" : "opacity-25 grayscale"}
-                >
-                  🎵
-                </span>
-                {!results.titleOnly && (
+                {(results.showTitle ?? true) && (
+                  <span
+                    title="Titre"
+                    className={item.foundTitle ? "" : "opacity-25 grayscale"}
+                  >
+                    🎵
+                  </span>
+                )}
+                {results.showArtist && (
                   <span
                     title="Artiste"
                     className={item.foundArtist ? "" : "opacity-25 grayscale"}
                   >
                     🎤
+                  </span>
+                )}
+                {results.hasFilm && item.film && (
+                  <span
+                    title="Film"
+                    className={item.foundFilm ? "" : "opacity-25 grayscale"}
+                  >
+                    🎬
                   </span>
                 )}
               </div>

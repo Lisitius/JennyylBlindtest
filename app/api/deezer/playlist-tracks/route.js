@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { dz, pickGameTracks } from "@/lib/deezer";
+import { dz, pickAvoidingPlayed, parseExcluded } from "@/lib/deezer";
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +15,18 @@ export async function GET(req) {
   }
   try {
     const body = await dz(`/playlist/${id}/tracks?limit=100`);
-    const tracks = pickGameTracks(body?.data || [], count);
+    const { tracks, exhausted } = pickAvoidingPlayed(
+      body?.data || [],
+      count,
+      parseExcluded(searchParams)
+    );
     if (!tracks.length) {
       return NextResponse.json(
         { error: "Cette playlist n'a pas d'extraits jouables." },
         { status: 404 }
       );
     }
-    return NextResponse.json({ tracks });
+    return NextResponse.json({ tracks, exhausted });
   } catch {
     return NextResponse.json(
       { error: "Playlist introuvable sur Deezer." },

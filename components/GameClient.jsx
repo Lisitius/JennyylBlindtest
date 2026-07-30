@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { isCorrectAnswer } from "@/lib/normalize";
+import { isCorrectAnswer, isCorrectFilmAnswer } from "@/lib/normalize";
 import VolumeSlider, { getStoredVolume } from "@/components/VolumeSlider";
 
 const ROUND_SECONDS = 30;
@@ -23,9 +23,61 @@ function speedFactor(elapsedSeconds) {
   return Math.max(1, Math.min(10, p));
 }
 
-// Points gagnés pour une partie (titre ou artiste) selon la rapidité.
+// --- Mémoire des morceaux déjà joués (par source de blindtest) ---
+// Évite de retomber sur les mêmes chansons avant d'avoir épuisé le vivier.
+const PLAYED_LIMIT = 400;
+
+function playedKey(source) {
+  return `blindtest-played:${source}`;
+}
+
+function getPlayed(source) {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(playedKey(source));
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter(Boolean).map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePlayed(source, ids) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      playedKey(source),
+      JSON.stringify(ids.slice(-PLAYED_LIMIT))
+    );
+  } catch {
+    // stockage indisponible : on joue simplement sans mémoire
+  }
+}
+
+// Points gagnés pour une partie (titre, artiste ou film) selon la rapidité.
 function partPoints(elapsedSeconds, partMax) {
   return Math.max(1, Math.round((speedFactor(elapsedSeconds) / 10) * partMax));
+}
+
+// Répartition des 10 points entre les champs à deviner :
+// 1 champ = 10 pts, 2 champs = 5/5, 3 champs = 4/3/3.
+function pointsSplit({ title, artist, film }) {
+  const n = [title, artist, film].filter(Boolean).length;
+  if (n <= 1) {
+    return {
+      title: title ? MAX_POINTS : 0,
+      artist: artist ? MAX_POINTS : 0,
+      film: film ? MAX_POINTS : 0,
+    };
+  }
+  if (n === 2) {
+    return {
+      title: title ? POINTS_TITLE : 0,
+      artist: artist ? POINTS_ARTIST : 0,
+      film: film ? POINTS_ARTIST : 0,
+    };
+  }
+  return { title: 4, artist: 3, film: 3 };
 }
 
 export default function GameClient() {
@@ -36,16 +88,21 @@ export default function GameClient() {
   const playlistId = params.get("playlist");
   const playlistName = params.get("name") || "Blindtest";
   const replayQuery = params.toString();
-  // Mode "titre seul" : pour les playlists d'un seul artiste, on ne cherche
-  // que le titre, qui vaut alors la totalité des points.
-  const titleOnly = params.get("mode") === "title";
-  const titlePointsMax = titleOnly ? MAX_POINTS : POINTS_TITLE;
+  // Modes de jeu :
+  //  full       = titre + artiste (+ film pour Disney/Films)
+  //  title      = titre seul (playlists d'un seul artiste)
+  //  title-film = titre + film
+  //  film       = film seul
+  const mode = params.get("mode") || "full";
+  const needTitle = mode !== "film";
+  const needArtist = mode === "full";
+  const wantFilm = mode !== "title"; // utilisé si le morceau a un film
   // Nombre de musiques choisi (10, 15 ou 20), 10 par défaut.
   const nbTracks = [10, 15, 20].includes(Number(params.get("count")))
     ? Number(params.get("count"))
     : NB_TRACKS;
-  // Temps de réponse par chanson (15, 20 ou 30 s), 30 par défaut.
-  const roundSeconds = [15, 20, 30].includes(Number(params.get("time")))
+  // Temps de réponse par chanson (5 s = option de test, 15, 20 ou 30 s).
+  const roundSeconds = [5, 15, 20, 30].includes(Number(params.get("time")))
     ? Number(params.get("time"))
     : ROUND_SECONDS;
 
@@ -61,6 +118,7 @@ export default function GameClient() {
   const [good, setGood] = useState(""); // message vert quand une partie est trouvée
   const [foundTitle, setFoundTitle] = useState(false);
   const [foundArtist, setFoundArtist] = useState(false);
+  const [foundFilm, setFoundFilm] = useState(false);
   const [lastResult, setLastResult] = useState(null); // "both" | "title" | "artist" | "none"
   const [lastPoints, setLastPoints] = useState(0);
   const [error, setError] = useState(null);
@@ -73,7 +131,12 @@ export default function GameClient() {
   const roundStartRef = useRef(0);
   const volumeRef = useRef(0.85);
   // Source de vérité de la manche, lisible depuis le timer :
-  const roundRef = useRef({ title: false, artist: false, points: 0 });
+  const roundRef = useRef({
+    title: false,
+    artist: false,
+    film: false,
+    points: 0,
+  });
 
   function fail(message) {
     setError(message);
@@ -82,17 +145,30 @@ export default function GameClient() {
 
   // ---- Chargement des morceaux ----
   useEffect(() => {
-    const url = themeKey
+    const source = themeKey
+      ? `theme:${themeKey}`
+      : artistId
+        ? `artist:${artistId}`
+        : playlistId
+          ? `playlist:${playlistId}`
+          : null;
+    const base = themeKey
       ? `/api/deezer/theme-tracks?key=${themeKey}&count=${nbTracks}`
       : artistId
         ? `/api/deezer/artist-tracks?id=${artistId}&count=${nbTracks}`
         : playlistId
           ? `/api/deezer/playlist-tracks?id=${playlistId}&count=${nbTracks}`
           : null;
-    if (!url) {
+    if (!base) {
       fail("Aucun blindtest sélectionné.");
       return;
     }
+    // On transmet les morceaux déjà joués pour qu'ils ne ressortent pas.
+    const already = getPlayed(source);
+    const url = already.length
+      ? `${base}&exclude=${already.join(",")}`
+      : base;
+
     fetch(url)
       .then(async (r) => {
         const d = await r.json();
@@ -102,6 +178,9 @@ export default function GameClient() {
       .then((d) => {
         if (!d.tracks?.length)
           throw new Error("Pas d'extraits jouables pour cette sélection.");
+        // Vivier épuisé : on repart d'une mémoire vierge.
+        const ids = d.tracks.map((t) => t.id).filter(Boolean);
+        savePlayed(source, d.exhausted ? ids : [...already, ...ids]);
         setTracks(d.tracks);
         setPhase("ready");
       })
@@ -162,9 +241,15 @@ export default function GameClient() {
           }
           roundEndedRef.current = false;
           roundStartRef.current = Date.now();
-          roundRef.current = { title: false, artist: false, points: 0 };
+          roundRef.current = {
+            title: false,
+            artist: false,
+            film: false,
+            points: 0,
+          };
           setFoundTitle(false);
           setFoundArtist(false);
+          setFoundFilm(false);
           setGood("");
           setWrong(false);
           setAnswer("");
@@ -220,24 +305,21 @@ export default function GameClient() {
       name: track.name,
       artists: track.artists,
       image: track.image,
+      film: track.film || null,
       foundTitle: r.title,
-      foundArtist: r.artist,
+      foundArtist: needArtist && r.artist,
+      foundFilm: Boolean(track.film) && wantFilm && r.film,
       points: r.points,
     });
     setHistory([...resultsRef.current]);
     setLastPoints(r.points);
+    // "both" = tout trouvé, "partial" = une partie seulement, "none" = rien.
+    const needed = [];
+    if (needTitle) needed.push(r.title);
+    if (needArtist) needed.push(r.artist);
+    if (wantFilm && track.film) needed.push(r.film);
     setLastResult(
-      titleOnly
-        ? r.title
-          ? "both"
-          : "none"
-        : r.title && r.artist
-          ? "both"
-          : r.title
-            ? "title"
-            : r.artist
-              ? "artist"
-              : "none"
+      needed.every(Boolean) ? "both" : needed.some(Boolean) ? "partial" : "none"
     );
     setPhase("reveal");
   }
@@ -274,9 +356,13 @@ export default function GameClient() {
             replayQuery,
             playlistName,
             total: tracks.length,
-            titleOnly,
+            mode,
+            showTitle: needTitle,
+            showArtist: needArtist,
             titlesFound: items.filter((i) => i.foundTitle).length,
             artistsFound: items.filter((i) => i.foundArtist).length,
+            hasFilm: items.some((i) => i.film),
+            filmsFound: items.filter((i) => i.foundFilm).length,
             score: items.reduce((sum, i) => sum + (i.points || 0), 0),
             maxPoints: tracks.length * MAX_POINTS,
             items,
@@ -292,45 +378,64 @@ export default function GameClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, lastResult, roundIndex, tracks]);
 
-  // ---- Soumission d'une réponse (titre et/ou artiste) ----
+  // ---- Soumission d'une réponse (titre, artiste et/ou film) ----
   function handleSubmit(e) {
     e.preventDefault();
     if (phase !== "playing" || !answer.trim()) return;
     const track = tracks[roundIndex];
     const r = roundRef.current;
     const elapsed = (Date.now() - roundStartRef.current) / 1000;
+    const withFilm = Boolean(track.film) && wantFilm;
+    const split = pointsSplit({
+      title: needTitle,
+      artist: needArtist,
+      film: withFilm,
+    });
 
     let gained = 0;
     const parts = [];
     if (
+      needTitle &&
       !r.title &&
       (isCorrectAnswer(answer, track.matchName || track.name) ||
         isCorrectAnswer(answer, track.name))
     ) {
-      const pts = partPoints(elapsed, titlePointsMax);
+      const pts = partPoints(elapsed, split.title);
       r.title = true;
       r.points += pts;
       gained += pts;
       parts.push(`🎵 Titre +${pts}`);
       setFoundTitle(true);
     }
-    if (!titleOnly && !r.artist && isCorrectAnswer(answer, track.artists)) {
-      const pts = partPoints(elapsed, POINTS_ARTIST);
+    if (needArtist && !r.artist && isCorrectAnswer(answer, track.artists)) {
+      const pts = partPoints(elapsed, split.artist);
       r.artist = true;
       r.points += pts;
       gained += pts;
       parts.push(`🎤 Artiste +${pts}`);
       setFoundArtist(true);
     }
+    if (withFilm && !r.film && isCorrectFilmAnswer(answer, track.film)) {
+      const pts = partPoints(elapsed, split.film);
+      r.film = true;
+      r.points += pts;
+      gained += pts;
+      parts.push(`🎬 Film +${pts}`);
+      setFoundFilm(true);
+    }
 
     if (gained > 0) {
       setScore((s) => s + gained);
       setAnswer("");
       setWrong(false);
-      if (titleOnly ? r.title : r.title && r.artist) {
+      const allFound =
+        (!needTitle || r.title) &&
+        (!needArtist || r.artist) &&
+        (!withFilm || r.film);
+      if (allFound) {
         finishRound();
       } else {
-        setGood(`${parts.join("  ·  ")} — trouve l'autre !`);
+        setGood(`${parts.join("  ·  ")} — continue !`);
         setTimeout(() => setGood(""), 2500);
         inputRef.current?.focus();
       }
@@ -351,8 +456,15 @@ export default function GameClient() {
         ? "bg-yellow-400"
         : "bg-red-500";
   const elapsedNow = roundSeconds - timeLeft;
-  const titlePotential = partPoints(elapsedNow, titlePointsMax);
-  const artistPotential = partPoints(elapsedNow, POINTS_ARTIST);
+  const withFilm = Boolean(track?.film) && wantFilm;
+  const currentSplit = pointsSplit({
+    title: needTitle,
+    artist: needArtist,
+    film: withFilm,
+  });
+  const titlePotential = partPoints(elapsedNow, currentSplit.title);
+  const artistPotential = partPoints(elapsedNow, currentSplit.artist);
+  const filmPotential = partPoints(elapsedNow, currentSplit.film);
 
   // ================= RENDU =================
 
@@ -465,10 +577,15 @@ export default function GameClient() {
                   </div>
                 )}
                 <div className="min-w-0">
-                  <div className="max-w-[130px] truncate text-xs font-bold">
+                  <div className="max-w-[150px] truncate text-xs font-bold">
                     {h.name}
                   </div>
-                  <div className="max-w-[130px] truncate text-[11px] text-zinc-400">
+                  {h.film && (
+                    <div className="max-w-[150px] truncate text-[11px] font-semibold text-jenny-light">
+                      🎬 {h.film}
+                    </div>
+                  )}
+                  <div className="max-w-[150px] truncate text-[11px] text-zinc-400">
                     {h.artists}
                   </div>
                 </div>
@@ -505,27 +622,36 @@ export default function GameClient() {
             <div className="text-center">
               <div className="text-8xl animate-pulse">🎶</div>
               <p className="mt-4 text-2xl font-bold text-zinc-300">
-                {titleOnly ? "Devine le titre" : "Devine le titre et l'artiste"}
+                {"Devine " +
+                  [
+                    needTitle && "le titre",
+                    needArtist && "l'artiste",
+                    withFilm && "le film",
+                  ]
+                    .filter(Boolean)
+                    .join(" et ")}
               </p>
             </div>
 
-            {/* Indicateurs titre / artiste */}
+            {/* Indicateurs titre / artiste / film */}
             <div className="flex w-full justify-center gap-4">
-              <div
-                className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
-                  foundTitle
-                    ? "bg-jenny/20 text-jenny-light ring-jenny"
-                    : "bg-zinc-900 text-zinc-300 ring-jenny-line"
-                }`}
-              >
-                🎵 Titre{" "}
-                {foundTitle ? (
-                  <span className="text-jenny-light">✓</span>
-                ) : (
-                  <span className="text-jenny">{titlePotential} pts</span>
-                )}
-              </div>
-              {!titleOnly && (
+              {needTitle && (
+                <div
+                  className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
+                    foundTitle
+                      ? "bg-jenny/20 text-jenny-light ring-jenny"
+                      : "bg-zinc-900 text-zinc-300 ring-jenny-line"
+                  }`}
+                >
+                  🎵 Titre{" "}
+                  {foundTitle ? (
+                    <span className="text-jenny-light">✓</span>
+                  ) : (
+                    <span className="text-jenny">{titlePotential} pts</span>
+                  )}
+                </div>
+              )}
+              {needArtist && (
                 <div
                   className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
                     foundArtist
@@ -538,6 +664,22 @@ export default function GameClient() {
                     <span className="text-jenny-light">✓</span>
                   ) : (
                     <span className="text-jenny">{artistPotential} pts</span>
+                  )}
+                </div>
+              )}
+              {withFilm && (
+                <div
+                  className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-lg font-bold ring-1 transition ${
+                    foundFilm
+                      ? "bg-jenny/20 text-jenny-light ring-jenny"
+                      : "bg-zinc-900 text-zinc-300 ring-jenny-line"
+                  }`}
+                >
+                  🎬 Film{" "}
+                  {foundFilm ? (
+                    <span className="text-jenny-light">✓</span>
+                  ) : (
+                    <span className="text-jenny">{filmPotential} pts</span>
                   )}
                 </div>
               )}
@@ -571,16 +713,21 @@ export default function GameClient() {
               <div>
                 <div className="text-5xl font-black text-jenny">
                   {lastResult === "both"
-                    ? titleOnly
-                      ? "✅ Bonne réponse !"
-                      : "✅ Titre + artiste !"
-                    : lastResult === "title"
-                      ? "🎵 Titre trouvé !"
-                      : "🎤 Artiste trouvé !"}
+                    ? [needTitle, needArtist, withFilm].filter(Boolean).length > 1
+                      ? "✅ Tout trouvé !"
+                      : "✅ Bonne réponse !"
+                    : "👍 Presque !"}
                 </div>
-                {lastResult !== "both" && (
+                {lastResult === "partial" && (
                   <div className="mt-1 text-lg font-semibold text-zinc-400">
-                    {lastResult === "title" ? "Artiste manqué" : "Titre manqué"}
+                    Il manquait{" "}
+                    {[
+                      needTitle && !foundTitle && "le titre",
+                      needArtist && !foundArtist && "l'artiste",
+                      withFilm && !foundFilm && "le film",
+                    ]
+                      .filter(Boolean)
+                      .join(" et ")}
                   </div>
                 )}
                 <div className="mt-2 text-2xl font-bold text-white">
@@ -599,6 +746,11 @@ export default function GameClient() {
             <div>
               <div className="text-3xl font-black">{track.name}</div>
               <div className="mt-1 text-xl text-zinc-400">{track.artists}</div>
+              {track.film && (
+                <div className="mt-1 text-lg font-semibold text-jenny-light">
+                  🎬 {track.film}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -632,13 +784,18 @@ export default function GameClient() {
           placeholder={
             phase !== "playing"
               ? "…"
-              : titleOnly
-                ? "Tape le titre de la chanson…"
-                : foundTitle
-                  ? "Trouve l'artiste…"
-                  : foundArtist
-                    ? "Trouve le titre…"
-                    : "Tape le titre ou l'artiste…"
+              : // On liste ce qu'il reste à trouver.
+                (() => {
+                  const reste = [
+                    needTitle && !foundTitle && "le titre",
+                    needArtist && !foundArtist && "l'artiste",
+                    withFilm && !foundFilm && "le film",
+                  ].filter(Boolean);
+                  if (!reste.length) return "…";
+                  return reste.length === 1
+                    ? `Trouve ${reste[0]}…`
+                    : `Tape ${reste.join(", ")}…`;
+                })()
           }
           autoComplete="off"
           autoCorrect="off"

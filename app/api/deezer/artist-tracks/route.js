@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { dz, pickGameTracks } from "@/lib/deezer";
+import { dz, pickAvoidingPlayed, parseExcluded } from "@/lib/deezer";
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +16,19 @@ export async function GET(req) {
   try {
     const body = await dz(`/artist/${id}/top?limit=50`);
     // Pas de limite par artiste : toutes les chansons sont du même artiste.
-    const tracks = pickGameTracks(body?.data || [], count, Infinity);
+    const { tracks, exhausted } = pickAvoidingPlayed(
+      body?.data || [],
+      count,
+      parseExcluded(searchParams),
+      Infinity
+    );
     if (!tracks.length) {
       return NextResponse.json(
         { error: "Pas d'extraits disponibles pour cet artiste." },
         { status: 404 }
       );
     }
-    return NextResponse.json({ tracks });
+    return NextResponse.json({ tracks, exhausted });
   } catch {
     return NextResponse.json(
       { error: "Artiste introuvable sur Deezer." },
