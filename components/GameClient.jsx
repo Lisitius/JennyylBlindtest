@@ -415,7 +415,13 @@ export default function GameClient() {
       parts.push(`🎤 Artiste +${pts}`);
       setFoundArtist(true);
     }
-    if (withFilm && !r.film && isCorrectFilmAnswer(answer, track.film)) {
+    // On accepte le titre français comme le titre d'origine (anglais).
+    if (
+      withFilm &&
+      !r.film &&
+      (isCorrectFilmAnswer(answer, track.film) ||
+        (track.filmAlt && isCorrectFilmAnswer(answer, track.filmAlt)))
+    ) {
       const pts = partPoints(elapsed, split.film);
       r.film = true;
       r.points += pts;

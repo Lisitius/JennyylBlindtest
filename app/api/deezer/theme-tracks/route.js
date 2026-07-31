@@ -46,8 +46,10 @@ const TRUSTED_ALBUM_QUERIES = [
 // Un album n'est retenu comme source officielle que si son titre correspond.
 const TRUSTED_ALBUM_TITLE = /plus belles chansons/i;
 
-// Les titres de ces compilations utilisent le nom anglais de certains films.
+// Titres de films en anglais -> nom français connu du public. Sert à afficher
+// le bon titre ET à accepter les deux langues en réponse.
 const EN_FR_FILMS = {
+  // Disney / animation
   "robin hood": "Robin des Bois",
   cinderella: "Cendrillon",
   "snow white": "Blanche Neige",
@@ -60,7 +62,47 @@ const EN_FR_FILMS = {
   "lady and the tramp": "La Belle et le Clochard",
   "sleeping beauty": "La Belle au Bois Dormant",
   "alice in wonderland": "Alice au Pays des Merveilles",
+  "finding dory": "Le Monde de Dory",
+  "finding nemo": "Le Monde de Nemo",
+  "toy story": "Toy Story",
+  "alvin the chipmunks": "Alvin et les Chipmunks",
+  "alvin and the chipmunks": "Alvin et les Chipmunks",
+  // Grands classiques du cinéma
+  "pirates of the caribbean": "Pirates des Caraïbes",
+  "the hunchback of notre dame": "Le Bossu de Notre-Dame",
+  "the mummy": "La Momie",
+  "the mummy returns": "Le Retour de la Momie",
+  "night at the museum": "La Nuit au musée",
+  "the day after tomorrow": "Le Jour d'après",
+  "the good the bad and the ugly": "Le Bon, la Brute et le Truand",
+  "the warriors": "Les Guerriers de la nuit",
+  "a monster calls": "Quelques minutes après minuit",
+  "fifty shades of grey": "Cinquante nuances de Grey",
+  "fifty shades freed": "Cinquante nuances plus claires",
+  "harry potter and the sorcerer s stone":
+    "Harry Potter à l'école des sorciers",
+  "harry potter and the philosopher s stone":
+    "Harry Potter à l'école des sorciers",
+  "the twilight saga new moon": "Twilight, chapitre 2 : Tentation",
+  "star wars the rise of skywalker": "Star Wars : L'Ascension de Skywalker",
+  "the lord of the rings the fellowship of the ring":
+    "Le Seigneur des Anneaux : La Communauté de l'Anneau",
+  "the bodyguard": "Bodyguard",
+  "gone with the wind": "Autant en emporte le vent",
+  "the sound of music": "La Mélodie du bonheur",
+  "singin in the rain": "Chantons sous la pluie",
+  "back to the future": "Retour vers le futur",
+  "the godfather": "Le Parrain",
+  "schindler s list": "La Liste de Schindler",
+  "saving private ryan": "Il faut sauver le soldat Ryan",
+  "the silence of the lambs": "Le Silence des agneaux",
+  "home alone": "Maman, j'ai raté l'avion",
+  "the nightmare before christmas": "L'Étrange Noël de Monsieur Jack",
 };
+
+// Mentions parasites dans les libellés de films.
+const FILM_LABEL_NOISE =
+  /\bmusic from the\b.*$|\bspecial edition\b|\bdeluxe\b|\bextended\b|^quentin tarantino['’]s\s+|^disney['’]s\s+|\boriginal\b\s*$/gi;
 
 // Compositeurs : leurs pistes sont des musiques de fond instrumentales,
 // injouables en blindtest (on veut les chansons interprétées).
@@ -85,10 +127,53 @@ const FILM_THEMES = {
   films: {
     albumRequired:
       /original motion picture soundtrack|motion picture soundtrack|bande originale|original soundtrack|\bost\b|original score/i,
-    searchQueries: ["bandes originales films soundtrack", "musiques de films cultes"],
-    playlistIds: [8531512122],
+    searchQueries: [
+      "bandes originales films soundtrack",
+      "musiques de films cultes",
+      "soundtrack films cultes",
+      "best movie soundtracks",
+      "musique de film blind test",
+      "chansons de films",
+      "bandes originales series tv",
+      "musiques de films francais",
+      "epic movie soundtracks",
+      "generique series tv cultes",
+      "musique de film annees 80",
+      "james bond soundtrack",
+      "comedies musicales films",
+      "soundtrack culte cinema",
+      "original motion picture soundtrack",
+      "musiques de films annees 90",
+      "musiques de films 2000",
+      "bandes originales disney pixar dreamworks",
+      "soundtrack action film",
+      "musique film romantique",
+      "bande originale film culte francais",
+      "movie soundtrack hits pop",
+      "netflix series soundtrack",
+      "musique de film science fiction",
+      "bandes originales westerns",
+      "soundtrack comedie americaine",
+      "chansons films annees 80 90",
+      "musique de film horreur",
+      "best of film scores",
+    ],
+    // Playlists vérifiées le 14/06/2026 (les plus productives en versions
+    // officielles).
+    playlistIds: [
+      8531512122, 1602126835, 3909111202, 3415555122, 11275615824,
+      7751334282, 1851741322, 15418856261, 11969638221, 4481298724,
+      3809722162, 15248574903,
+    ],
   },
 };
+
+// Vivier Films & Séries : même cible que Disney, avec peu de titres d'un même
+// film et un quota Disney pour ne pas transformer la catégorie en blindtest
+// Disney bis (ces films ont déjà leur propre thème).
+const FILMS_POOL_TARGET = 250;
+const FILMS_MAX_PER_FILM = 5;
+const FILMS_MAX_DISNEY = 12;
 
 // Compilations et interprètes de reprise : écartés dans tous les cas.
 const COVER_ALBUM =
@@ -99,48 +184,96 @@ const COVER_ARTIST =
 // Ajoute au vivier les morceaux d'une liste de playlists qui remplissent
 // les 3 champs (titre / artiste / film) en version officielle.
 async function addPlaylists(ids, conf, pool, seenIds) {
-  for (const id of ids) {
-    if (seenIds.has(id)) continue;
+  // Requêtes par paquets : en série, 40 playlists prenaient plus de 10 s.
+  const aTraiter = ids.filter((id) => {
+    if (seenIds.has(id)) return false;
     seenIds.add(id);
-    let tracks = [];
-    try {
-      const body = await dz(`/playlist/${id}/tracks?limit=100`);
-      tracks = body?.data || [];
-    } catch {
-      continue;
-    }
-    for (const t of tracks) {
-      const album = t?.album?.title || "";
-      const artist = t?.artist?.name || "";
-      if (!t?.preview) continue;
-      if (!conf.albumRequired.test(album)) continue; // version officielle only
-      if (COVER_ALBUM.test(album) || COVER_ARTIST.test(artist)) continue;
-      const filmName = extractFilm(album, t.title);
-      if (!filmName || filmName.length < 2) continue; // 3e champ introuvable
-      pool.push({ ...t, filmName });
+    return true;
+  });
+
+  for (let i = 0; i < aTraiter.length; i += 8) {
+    const lots = await Promise.all(
+      aTraiter.slice(i, i + 8).map((id) =>
+        dz(`/playlist/${id}/tracks?limit=100`).catch(() => null)
+      )
+    );
+    for (const body of lots) {
+      for (const t of body?.data || []) {
+        const album = t?.album?.title || "";
+        const artist = t?.artist?.name || "";
+        if (!t?.preview) continue;
+        if (!conf.albumRequired.test(album)) continue; // version officielle only
+        if (COVER_ALBUM.test(album) || COVER_ARTIST.test(artist)) continue;
+        const { filmName, filmAlt } = filmLabels(extractFilm(album, t.title));
+        if (!filmName || filmName.length < 2) continue; // 3e champ introuvable
+        pool.push({ ...t, filmName, filmAlt });
+      }
     }
   }
 }
 
-// Construit le vivier : d'abord les playlists de référence (les plus connues),
-// et seulement si elles ne suffisent pas, on élargit via la recherche.
-async function buildFilmPool(conf, needed) {
+let filmsCache = null;
+let filmsCacheAt = 0;
+
+// Construit le vivier Films & Séries : playlists de référence puis recherche
+// élargie, jusqu'à FILMS_POOL_TARGET morceaux.
+async function buildFilmsPool() {
+  if (filmsCache && Date.now() - filmsCacheAt < 6 * 60 * 60 * 1000) {
+    return filmsCache;
+  }
+  const conf = FILM_THEMES.films;
   const pool = [];
   const seenIds = new Set();
   await addPlaylists(conf.playlistIds, conf, pool, seenIds);
-  if (pool.length >= needed * 3) return pool;
 
-  const extra = [];
-  for (const q of conf.searchQueries) {
-    try {
-      const s = await dz(`/search/playlist?q=${encodeURIComponent(q)}&limit=5`);
-      for (const p of s?.data || []) if (p?.id) extra.push(p.id);
-    } catch {
-      // recherche suivante
+  // On élargit tant que le vivier n'est pas assez fourni.
+  if (pool.length < FILMS_POOL_TARGET * 2) {
+    const extra = [];
+    for (let i = 0; i < conf.searchQueries.length; i += 5) {
+      const res = await Promise.all(
+        conf.searchQueries
+          .slice(i, i + 5)
+          .map((q) =>
+            dz(`/search/playlist?q=${encodeURIComponent(q)}&limit=6`).catch(
+              () => null
+            )
+          )
+      );
+      for (const s of res) {
+        for (const p of s?.data || []) {
+          if (p?.id && (p.nb_tracks ?? 0) >= 20) extra.push(p.id);
+        }
+      }
     }
+    await addPlaylists(extra.slice(0, 130), conf, pool, seenIds);
   }
-  await addPlaylists(extra.slice(0, 5), conf, pool, seenIds);
-  return pool;
+
+  // Les plus populaires d'abord, puis dédoublonnage et quotas.
+  pool.sort((a, b) => (b.rank ?? 0) - (a.rank ?? 0));
+  const seenTitles = new Set();
+  const perFilm = new Map();
+  let disneyCount = 0;
+  const final = [];
+  for (const t of pool) {
+    const tk = norm((t.title || "").replace(/\(.*?\)/g, ""));
+    const fk = norm((t.filmName || "").replace(/\(.*?\)/g, ""));
+    if (!tk || seenTitles.has(tk)) continue;
+    if ((perFilm.get(fk) || 0) >= FILMS_MAX_PER_FILM) continue;
+    // Les Disney ont déjà leur thème : on n'en garde qu'une poignée ici.
+    const estDisney = DISNEY_FILMS.some((d) => fk.includes(norm(d)));
+    if (estDisney && disneyCount >= FILMS_MAX_DISNEY) continue;
+    if (estDisney) disneyCount++;
+    seenTitles.add(tk);
+    perFilm.set(fk, (perFilm.get(fk) || 0) + 1);
+    final.push(t);
+    if (final.length >= FILMS_POOL_TARGET) break;
+  }
+
+  if (final.length) {
+    filmsCache = final;
+    filmsCacheAt = Date.now();
+  }
+  return final;
 }
 
 // --- Vivier Disney : une recherche par film ---
@@ -154,13 +287,34 @@ const norm = (s) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
+// Nettoie un libellé de film ("Titanic: Music from the" -> "Titanic").
+function cleanFilmLabel(film) {
+  return (film || "")
+    .replace(FILM_LABEL_NOISE, " ")
+    .replace(/[:\-–—,]\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // Traduit un titre de film anglais en français si nécessaire.
 function frenchFilmName(film) {
-  const key = norm(film);
+  const cleaned = cleanFilmLabel(film);
+  const key = norm(cleaned);
   for (const [en, fr] of Object.entries(EN_FR_FILMS)) {
     if (key === norm(en)) return fr;
   }
-  return film;
+  return cleaned || film;
+}
+
+// Nom affiché (français si connu) + nom d'origine, pour accepter les deux
+// langues en réponse ("Pirates des Caraïbes" ou "Pirates of the Caribbean").
+function filmLabels(rawFilm) {
+  const original = cleanFilmLabel(rawFilm);
+  const display = frenchFilmName(rawFilm);
+  return {
+    filmName: display,
+    filmAlt: norm(original) && norm(original) !== norm(display) ? original : null,
+  };
 }
 
 // Ramène un libellé au nom canonique de la liste, pour éviter les doublons
@@ -234,7 +388,11 @@ async function addTrustedCompilations(pool, whitelist) {
       if (!m || EN_MARK.test(title)) continue; // version anglaise ou sans marqueur
       const filmName = frenchFilmName(m[1].trim());
       if (!acceptDisneyTrack(t, filmName, whitelist)) continue;
-      pool.push({ ...t, filmName: canonicalFilmName(filmName) });
+      pool.push({
+        ...t,
+        filmName: canonicalFilmName(filmName),
+        filmAlt: filmLabels(m[1].trim()).filmAlt,
+      });
     }
   }
 }
@@ -277,9 +435,14 @@ async function buildDisneyPool() {
         )
           continue;
         if (COVER_ALBUM.test(album) || COVER_ALBUM.test(title)) continue;
-        const filmName = frenchFilmName(extractFilm(album, title));
+        const raw = extractFilm(album, title);
+        const filmName = frenchFilmName(raw);
         if (!acceptDisneyTrack(t, filmName, whitelist)) continue;
-        pool.push({ ...t, filmName: canonicalFilmName(filmName) });
+        pool.push({
+          ...t,
+          filmName: canonicalFilmName(filmName),
+          filmAlt: filmLabels(raw).filmAlt,
+        });
       }
     }
   }
@@ -360,9 +523,7 @@ export async function GET(req) {
       try {
         // Disney : recherche film par film (bien plus de films couverts).
         const pool =
-          key === "disney"
-            ? await buildDisneyPool()
-            : await buildFilmPool(filmConf, count);
+          key === "disney" ? await buildDisneyPool() : await buildFilmsPool();
         // 3 morceaux par film au plus dans une même partie, pour varier les
         // films devinés (on privilégie les films encore non joués).
         const perFilm = new Map();
