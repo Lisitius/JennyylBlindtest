@@ -17,6 +17,7 @@ export default function SalonPage() {
   const [reponse, setReponse] = useState("");
   const [flash, setFlash] = useState(null);
   const [revele, setRevele] = useState(false); // l'animatrice demande à voir
+  const [confirmQuitter, setConfirmQuitter] = useState(false);
 
   const audioRef = useRef(null);
   const minuteurRef = useRef(null);
@@ -88,8 +89,19 @@ export default function SalonPage() {
     }
   }, [pret, etat]);
 
-  // Le minuteur n'est annulé qu'en quittant la page.
-  useEffect(() => () => clearTimeout(minuteurRef.current), []);
+  // En quittant la page : on arrête le minuteur ET la musique. Sans cela,
+  // l'extrait continuerait à jouer en arrière-plan après avoir quitté.
+  useEffect(
+    () => () => {
+      clearTimeout(minuteurRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    },
+    []
+  );
 
   // --- Coupe le son hors manche ---
   useEffect(() => {
@@ -145,6 +157,22 @@ export default function SalonPage() {
     }
     setTimeout(() => setFlash(null), 1600);
     inputRef.current?.focus();
+  }
+
+  // Quitter : la musique s'arrête tout de suite pour celui qui part.
+  // Si c'est l'animatrice, la partie se termine pour tout le monde.
+  async function quitter() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+    clearTimeout(minuteurRef.current);
+    try {
+      await fetch(`/api/rooms/${code}/leave`, { method: "POST" });
+    } catch {
+      // même en cas de souci réseau, on laisse la personne partir
+    }
+    router.push("/salon");
   }
 
   async function action(a, extra = {}) {
@@ -251,9 +279,41 @@ export default function SalonPage() {
               📺 Vue stream
             </Link>
           )}
-          <Link href="/salon" className="rounded-full bg-zinc-800 px-4 py-2 text-xs font-bold text-zinc-300 hover:bg-zinc-700">
-            ✕ Quitter
-          </Link>
+          {etat.estHote && etat.statut !== "ended" ? (
+            confirmQuitter ? (
+              <div className="flex items-center gap-1 rounded-full bg-red-950/60 p-1 ring-1 ring-red-800">
+                <span className="px-2 text-xs font-bold text-red-200">
+                  Fermer pour tous ?
+                </span>
+                <button
+                  onClick={quitter}
+                  className="rounded-full bg-red-600 px-3 py-1 text-xs font-black text-white"
+                >
+                  Oui
+                </button>
+                <button
+                  onClick={() => setConfirmQuitter(false)}
+                  className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-bold"
+                >
+                  Non
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmQuitter(true)}
+                className="rounded-full bg-zinc-800 px-4 py-2 text-xs font-bold text-zinc-300 hover:bg-zinc-700"
+              >
+                ✕ Fermer la partie
+              </button>
+            )
+          ) : (
+            <button
+              onClick={quitter}
+              className="rounded-full bg-zinc-800 px-4 py-2 text-xs font-bold text-zinc-300 hover:bg-zinc-700"
+            >
+              ✕ Quitter
+            </button>
+          )}
         </div>
       </div>
 
@@ -365,8 +425,22 @@ export default function SalonPage() {
 
           {etat.statut === "ended" && (
             <div className="rounded-2xl bg-jenny-surface/60 p-8 text-center ring-1 ring-jenny-line">
-              <div className="text-6xl">🏁</div>
-              <h2 className="mt-2 text-3xl font-black text-gradient">Podium</h2>
+              {etat.fermeParHote && !etat.estHote ? (
+                <>
+                  <div className="text-6xl">🚪</div>
+                  <h2 className="mt-3 text-2xl font-black text-red-300">
+                    Le créateur du salon a fermé la partie
+                  </h2>
+                  <p className="mt-2 text-zinc-400">
+                    Voici le classement au moment de la fermeture.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="text-6xl">🏁</div>
+                  <h2 className="mt-2 text-3xl font-black text-gradient">Podium</h2>
+                </>
+              )}
               <div className="mt-6 flex flex-col gap-2">
                 {etat.joueurs.slice(0, 10).map((j, i) => (
                   <div

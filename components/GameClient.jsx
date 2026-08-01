@@ -14,13 +14,16 @@ const NB_TRACKS = 10;
 const POINTS_TITLE = 5; // points max pour le titre
 const POINTS_ARTIST = 5; // points max pour l'artiste
 const MAX_POINTS = POINTS_TITLE + POINTS_ARTIST; // total par titre (10)
-const FULL_POINTS_SECONDS = 6; // fenêtre où la réponse vaut le maximum
-
-// Facteur de rapidité (1 à 10) : plein pendant 6 s, puis -1 cran toutes les 3 s.
-function speedFactor(elapsedSeconds) {
-  if (elapsedSeconds < FULL_POINTS_SECONDS) return 10;
-  const p = 10 - 1 - Math.floor((elapsedSeconds - FULL_POINTS_SECONDS) / 3);
-  return Math.max(1, Math.min(10, p));
+// Facteur de rapidité (1 à 10), proportionnel à la durée de la manche : les
+// points restent au maximum pendant le premier cinquième du temps, puis
+// diminuent régulièrement jusqu'au minimum à la fin. Le rythme est ainsi le
+// même en 15, 20, 30 ou 45 secondes.
+function speedFactor(elapsedSeconds, duree = 30) {
+  const d = duree > 0 ? duree : 30;
+  const repit = d * 0.2;
+  if (elapsedSeconds <= repit) return 10;
+  const avancement = Math.min(1, (elapsedSeconds - repit) / (d - repit));
+  return Math.max(1, Math.round(10 - avancement * 9));
 }
 
 // --- Mémoire des morceaux déjà joués (par source de blindtest) ---
@@ -55,8 +58,12 @@ function savePlayed(source, ids) {
 }
 
 // Points gagnés pour une partie (titre, artiste ou film) selon la rapidité.
-function partPoints(elapsedSeconds, partMax) {
-  return Math.max(1, Math.round((speedFactor(elapsedSeconds) / 10) * partMax));
+function partPoints(elapsedSeconds, partMax, duree = 30) {
+  if (!partMax) return 0;
+  return Math.max(
+    1,
+    Math.round((speedFactor(elapsedSeconds, duree) / 10) * partMax)
+  );
 }
 
 // Répartition des 10 points entre les champs à deviner :
@@ -428,7 +435,7 @@ export default function GameClient() {
       (isCorrectAnswer(answer, track.matchName || track.name) ||
         isCorrectAnswer(answer, track.name))
     ) {
-      const pts = partPoints(elapsed, split.title);
+      const pts = partPoints(elapsed, split.title, roundSeconds);
       r.title = true;
       r.points += pts;
       gained += pts;
@@ -436,7 +443,7 @@ export default function GameClient() {
       setFoundTitle(true);
     }
     if (needArtist && !r.artist && isCorrectAnswer(answer, track.artists)) {
-      const pts = partPoints(elapsed, split.artist);
+      const pts = partPoints(elapsed, split.artist, roundSeconds);
       r.artist = true;
       r.points += pts;
       gained += pts;
@@ -450,7 +457,7 @@ export default function GameClient() {
       (isCorrectFilmAnswer(answer, track.film) ||
         (track.filmAlt && isCorrectFilmAnswer(answer, track.filmAlt)))
     ) {
-      const pts = partPoints(elapsed, split.film);
+      const pts = partPoints(elapsed, split.film, roundSeconds);
       r.film = true;
       r.points += pts;
       gained += pts;
@@ -496,9 +503,9 @@ export default function GameClient() {
     artist: needArtist,
     film: withFilm,
   });
-  const titlePotential = partPoints(elapsedNow, currentSplit.title);
-  const artistPotential = partPoints(elapsedNow, currentSplit.artist);
-  const filmPotential = partPoints(elapsedNow, currentSplit.film);
+  const titlePotential = partPoints(elapsedNow, currentSplit.title, roundSeconds);
+  const artistPotential = partPoints(elapsedNow, currentSplit.artist, roundSeconds);
+  const filmPotential = partPoints(elapsedNow, currentSplit.film, roundSeconds);
 
   // ================= RENDU =================
 

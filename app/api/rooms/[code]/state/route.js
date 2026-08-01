@@ -56,11 +56,16 @@ export async function GET(req, { params }) {
   const ecoule = salon.round_started_at
     ? Math.max(0, (Date.now() - new Date(salon.round_started_at).getTime()) / 1000)
     : 0;
+  // La décroissance suit la durée choisie (15, 20, 30 ou 45 s).
+  const dureeManche =
+    salon.round_started_at && salon.round_ends_at
+      ? (new Date(salon.round_ends_at) - new Date(salon.round_started_at)) / 1000
+      : salon.settings?.roundSeconds || 30;
   const bareme = baremeMax
     ? {
-        titre: pointsPartie(ecoule, baremeMax.titre),
-        artiste: pointsPartie(ecoule, baremeMax.artiste),
-        film: pointsPartie(ecoule, baremeMax.film),
+        titre: pointsPartie(ecoule, baremeMax.titre, dureeManche),
+        artiste: pointsPartie(ecoule, baremeMax.artiste, dureeManche),
+        film: pointsPartie(ecoule, baremeMax.film, dureeManche),
       }
     : null;
 
@@ -86,6 +91,7 @@ export async function GET(req, { params }) {
     serveurMaintenant: new Date().toISOString(), // pour caler les horloges
     autoNext: salon.auto_next,
     verrouille: salon.locked,
+    fermeParHote: Boolean(salon.settings?.fermeParHote),
     mode,
     champs,
     bareme, // valeur actuelle, qui décroît
