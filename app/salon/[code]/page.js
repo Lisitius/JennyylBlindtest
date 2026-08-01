@@ -338,6 +338,9 @@ export default function SalonPage() {
               <p className="mt-1 text-center text-2xl font-black tabular-nums">
                 {Math.ceil(restant)}s
               </p>
+              <p className="mt-1 text-center text-sm text-zinc-500">
+                Plus tu réponds vite, plus tu marques de points
+              </p>
             </div>
           )}
 

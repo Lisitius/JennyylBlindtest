@@ -8,6 +8,7 @@ import {
   vuePublique,
   champsADeviner,
   repartition,
+  pointsPartie,
 } from "@/lib/rooms";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,20 @@ export async function GET(req, { params }) {
   const mode = salon.settings?.mode || "full";
   const champs = morceau ? champsADeviner(mode, morceau) : null;
 
+  // Ce que vaut chaque champ à cet instant précis : les points fondent avec le
+  // temps, l'affichage doit le montrer (sinon rien n'incite à se dépêcher).
+  const baremeMax = champs ? repartition(champs) : null;
+  const ecoule = salon.round_started_at
+    ? Math.max(0, (Date.now() - new Date(salon.round_started_at).getTime()) / 1000)
+    : 0;
+  const bareme = baremeMax
+    ? {
+        titre: pointsPartie(ecoule, baremeMax.titre),
+        artiste: pointsPartie(ecoule, baremeMax.artiste),
+        film: pointsPartie(ecoule, baremeMax.film),
+      }
+    : null;
+
   // Réponses refusées de la manche : uniquement pour l'animatrice, pour
   // qu'elle puisse en valider une à la main.
   let aArbitrer = [];
@@ -73,7 +88,8 @@ export async function GET(req, { params }) {
     verrouille: salon.locked,
     mode,
     champs,
-    bareme: champs ? repartition(champs) : null,
+    bareme, // valeur actuelle, qui décroît
+    baremeMax, // valeur de départ, pour information
     estHote,
     hoteJoue: salon.host_plays,
     moi: moiJoueur
