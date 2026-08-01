@@ -135,8 +135,18 @@ export default function ComptePage() {
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-black">
-            🐨 <span className="text-gradient">{profil.pseudo}</span>
+            {profil.role === "admin"
+              ? "🛡️"
+              : profil.role === "animateur"
+                ? "🎤"
+                : "🐨"}{" "}
+            <span className="text-gradient">{profil.pseudo}</span>
           </h1>
+          {profil.role !== "joueur" && (
+            <p className="mt-1 text-sm font-bold text-jenny-light">
+              {profil.role === "admin" ? "Administrateur" : "Animateur"}
+            </p>
+          )}
           {profil.membreDepuis && (
             <p className="mt-1 text-sm text-zinc-500">
               Membre depuis le{" "}

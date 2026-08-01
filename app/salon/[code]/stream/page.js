@@ -128,7 +128,10 @@ export default function VueStream() {
               }`}
             >
               <span className="truncate font-bold">
-                {["🥇", "🥈", "🥉"][i] || `${i + 1}.`} {j.pseudo}
+                {["🥇", "🥈", "🥉"][i] || `${i + 1}.`}{" "}
+                {j.role === "admin" && "🛡️ "}
+                {j.role === "animateur" && "🎤 "}
+                {j.pseudo}
               </span>
               <span className="font-black text-jenny-light">{j.score}</span>
             </div>

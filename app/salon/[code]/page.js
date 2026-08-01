@@ -448,7 +448,10 @@ export default function SalonPage() {
                     className={`flex items-center justify-between rounded-xl px-5 py-3 ring-1 ${i === 0 ? "bg-jenny/20 ring-jenny" : "bg-zinc-900/60 ring-jenny-line"}`}
                   >
                     <span className="font-bold">
-                      {["🥇", "🥈", "🥉"][i] || `${i + 1}.`} {j.pseudo}
+                      {["🥇", "🥈", "🥉"][i] || `${i + 1}.`}{" "}
+                      {j.role === "admin" && "🛡️ "}
+                      {j.role === "animateur" && "🎤 "}
+                      {j.pseudo}
                     </span>
                     <span className="font-black text-jenny-light">{j.score} pts</span>
                   </div>
@@ -497,7 +500,12 @@ export default function SalonPage() {
                   className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${j.estMoi ? "bg-jenny/15 font-bold" : ""}`}
                 >
                   <span className="truncate">
-                    {i + 1}. {j.pseudo} {j.estMoi && "(toi)"}
+                    {i + 1}.{" "}
+                    {j.role === "admin" && (
+                      <span title="Administrateur">🛡️ </span>
+                    )}
+                    {j.role === "animateur" && <span title="Animateur">🎤 </span>}
+                    {j.pseudo} {j.estMoi && "(toi)"}
                   </span>
                   <span className="font-black text-jenny-light">{j.score}</span>
                 </div>

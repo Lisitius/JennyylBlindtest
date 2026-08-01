@@ -217,9 +217,14 @@ export default function GameClient() {
     const audio = new Audio();
     audio.volume = volumeRef.current;
     audioRef.current = audio;
-    // Lecture muette immédiate pendant le clic : débloque l'audio pour la suite.
-    audio.play().catch(() => {});
-    audio.pause();
+    // Le clic est le seul moment où le navigateur autorise le son. On joue un
+    // court silence pour débloquer le lecteur : un lecteur vide ne suffit pas,
+    // certains navigateurs refusent ensuite toute lecture.
+    audio.src =
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
+    audio.play()
+      .then(() => audio.pause())
+      .catch(() => {});
     resultsRef.current = [];
     setHistory([]);
     setScore(0);

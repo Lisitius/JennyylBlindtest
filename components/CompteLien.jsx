@@ -25,12 +25,21 @@ export default function CompteLien({ className = "" }) {
   if (!etat) return <div className={className} />;
 
   if (etat.connecte) {
+    const ecusson =
+      etat.role === "admin" ? "🛡️" : etat.role === "animateur" ? "🎤" : "";
     return (
       <Link
         href="/compte"
+        title={
+          etat.role === "admin"
+            ? "Administrateur"
+            : etat.role === "animateur"
+              ? "Animateur"
+              : "Joueur"
+        }
         className={`rounded-full bg-jenny/15 px-5 py-2 text-sm font-bold text-jenny-light ring-1 ring-jenny/40 transition hover:bg-jenny/25 ${className}`}
       >
-        🐨 {etat.pseudo}
+        {ecusson || "🐨"} {etat.pseudo}
       </Link>
     );
   }

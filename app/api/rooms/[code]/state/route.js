@@ -33,6 +33,16 @@ export async function GET(req, { params }) {
   const joueurs = await joueursDuSalon(salon.id);
   const moiJoueur = joueurs.find((j) => j.user_id === moi.userId) || null;
 
+  // Grade de chaque joueur, pour l'écusson affiché au classement.
+  const roles = new Map();
+  if (joueurs.length) {
+    const ids = joueurs.map((j) => j.user_id).join(",");
+    const pr = await db(`/profiles?id=in.(${ids})&select=id,role`);
+    for (const p of Array.isArray(pr.body) ? pr.body : []) {
+      roles.set(p.id, p.role || "joueur");
+    }
+  }
+
   const exclu = await db(
     `/room_players?room_id=eq.${salon.id}&user_id=eq.${moi.userId}&select=kicked`
   );
@@ -105,6 +115,8 @@ export async function GET(req, { params }) {
       pseudo: j.pseudo,
       score: j.score,
       estMoi: j.user_id === moi.userId,
+      role: roles.get(j.user_id) || "joueur",
+      estAnimateur: j.user_id === salon.host_id,
     })),
     morceau: vuePublique(salon, morceau, { estHote, revele }),
     aArbitrer,
