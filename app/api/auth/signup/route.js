@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { createUser, deleteUser, db, verifyPassword } from "@/lib/supabase";
+import {
+  createUser,
+  deleteUser,
+  db,
+  verifyPassword,
+  reponseConfigManquante,
+} from "@/lib/supabase";
 import { createSessionCookie } from "@/lib/session";
 import {
   validerPseudo,
@@ -10,6 +16,9 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function POST(req) {
+  const config = reponseConfigManquante();
+  if (config) return NextResponse.json(config, { status: 503 });
+
   let corps;
   try {
     corps = await req.json();

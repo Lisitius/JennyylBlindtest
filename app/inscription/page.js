@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { postJson } from "@/lib/api";
 
 export default function InscriptionPage() {
   const router = useRouter();
@@ -18,13 +19,7 @@ export default function InscriptionPage() {
     setErreur(null);
     setEnvoi(true);
     try {
-      const r = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pseudo, email, motDePasse, conditions }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Inscription impossible.");
+      await postJson("/api/auth/signup", { pseudo, email, motDePasse, conditions });
       router.push("/compte");
       router.refresh();
     } catch (e2) {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { postJson } from "@/lib/api";
 
 export default function MotDePasseOublie() {
   const [email, setEmail] = useState("");
@@ -14,13 +15,7 @@ export default function MotDePasseOublie() {
     setErreur(null);
     setEnvoi(true);
     try {
-      const r = await fetch("/api/auth/forgot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Envoi impossible.");
+      await postJson("/api/auth/forgot", { email });
       setEnvoye(true);
     } catch (e2) {
       setErreur(e2.message);

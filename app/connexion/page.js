@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { postJson } from "@/lib/api";
 
 export default function ConnexionPage() {
   const router = useRouter();
@@ -16,13 +17,7 @@ export default function ConnexionPage() {
     setErreur(null);
     setEnvoi(true);
     try {
-      const r = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, motDePasse }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Connexion impossible.");
+      await postJson("/api/auth/login", { email, motDePasse });
       router.push("/playlists");
       router.refresh();
     } catch (e2) {

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { postJson } from "@/lib/api";
 
 function Formulaire() {
   const router = useRouter();
@@ -61,19 +62,14 @@ function Formulaire() {
     try {
       // Deux origines possibles pour le lien : notre propre email (Brevo)
       // ou celui envoyé par Supabase.
-      const r = jetonSupabase
-        ? await fetch("/api/auth/reset-supabase", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accessToken: jetonSupabase, motDePasse }),
-          })
-        : await fetch("/api/auth/reset", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ jeton, motDePasse }),
-          });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Impossible.");
+      if (jetonSupabase) {
+        await postJson("/api/auth/reset-supabase", {
+          accessToken: jetonSupabase,
+          motDePasse,
+        });
+      } else {
+        await postJson("/api/auth/reset", { jeton, motDePasse });
+      }
       router.push("/compte");
       router.refresh();
     } catch (e2) {
