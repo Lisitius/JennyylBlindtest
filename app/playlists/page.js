@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import VolumeSlider from "@/components/VolumeSlider";
+import CompteLien from "@/components/CompteLien";
 
 const THEMES = [
   { key: "70s", label: "Années 70", emoji: "🕺", desc: "Disco, funk & soul" },
@@ -99,12 +101,21 @@ export default function PlaylistsPage() {
         <h1 className="text-4xl font-black">
           🐨 <span className="text-gradient">Choisis ton blindtest</span>
         </h1>
-        <button
-          onClick={() => router.push("/")}
-          className="rounded-full bg-zinc-800 px-5 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-700"
-        >
-          ← Accueil
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/salon"
+            className="rounded-full bg-jenny/15 px-5 py-2 text-sm font-bold text-jenny-light ring-1 ring-jenny/40 transition hover:bg-jenny/25"
+          >
+            🎉 Partie entre amis
+          </Link>
+          <CompteLien />
+          <button
+            onClick={() => router.push("/")}
+            className="rounded-full bg-zinc-800 px-5 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-700"
+          >
+            ← Accueil
+          </button>
+        </div>
       </header>
 
       <div className="mb-5 flex flex-col gap-3 rounded-2xl bg-jenny-surface/60 p-5 ring-1 ring-jenny-line sm:flex-row sm:items-center sm:gap-6 animate-fadein">
@@ -177,7 +188,7 @@ export default function PlaylistsPage() {
             </p>
           </div>
           <div className="flex shrink-0 rounded-full bg-zinc-900 p-1 ring-1 ring-jenny-line">
-            {[5, 15, 20, 30].map((n) => (
+            {[15, 20, 30, 45].map((n) => (
               <button
                 key={n}
                 onClick={() => setDuration(n)}

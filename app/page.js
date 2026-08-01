@@ -1,11 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import CompteLien from "@/components/CompteLien";
 
 export default function HomePage() {
   const router = useRouter();
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-10 px-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center gap-10 px-6">
+      <div className="absolute right-6 top-6">
+        <CompteLien />
+      </div>
       <div className="text-center animate-fadein">
         {/* Mascotte koala + monogramme JK */}
         <div className="mb-6 flex items-center justify-center gap-4">
@@ -30,7 +35,10 @@ export default function HomePage() {
       </button>
 
       <p className="text-sm text-jenny-light/50">
-        Gratuit · Aucun compte requis · Extraits musicaux Deezer
+        Extraits musicaux Deezer ·{" "}
+        <Link href="/regles" className="underline hover:text-jenny-light">
+          Règles & confidentialité
+        </Link>
       </p>
     </main>
   );

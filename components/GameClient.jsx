@@ -101,8 +101,8 @@ export default function GameClient() {
   const nbTracks = [10, 15, 20].includes(Number(params.get("count")))
     ? Number(params.get("count"))
     : NB_TRACKS;
-  // Temps de réponse par chanson (5 s = option de test, 15, 20 ou 30 s).
-  const roundSeconds = [5, 15, 20, 30].includes(Number(params.get("time")))
+  // Temps de réponse par chanson (15, 20, 30 ou 45 s).
+  const roundSeconds = [15, 20, 30, 45].includes(Number(params.get("time")))
     ? Number(params.get("time"))
     : ROUND_SECONDS;
 
@@ -350,24 +350,52 @@ export default function GameClient() {
     const t = setTimeout(() => {
       if (roundIndex + 1 >= tracks.length) {
         const items = resultsRef.current;
-        sessionStorage.setItem(
-          "blindtest-results",
-          JSON.stringify({
-            replayQuery,
-            playlistName,
-            total: tracks.length,
+        const bilan = {
+          replayQuery,
+          playlistName,
+          total: tracks.length,
+          mode,
+          showTitle: needTitle,
+          showArtist: needArtist,
+          titlesFound: items.filter((i) => i.foundTitle).length,
+          artistsFound: items.filter((i) => i.foundArtist).length,
+          hasFilm: items.some((i) => i.film),
+          filmsFound: items.filter((i) => i.foundFilm).length,
+          score: items.reduce((sum, i) => sum + (i.points || 0), 0),
+          maxPoints: tracks.length * MAX_POINTS,
+          items,
+        };
+        sessionStorage.setItem("blindtest-results", JSON.stringify(bilan));
+
+        // Enregistrement dans l'historique du joueur connecté.
+        // Sans compte, la requête est simplement ignorée par le serveur.
+        fetch("/api/games", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: themeKey
+              ? `theme:${themeKey}`
+              : artistId
+                ? `artist:${artistId}`
+                : `playlist:${playlistId}`,
+            sourceName: playlistName,
             mode,
-            showTitle: needTitle,
-            showArtist: needArtist,
-            titlesFound: items.filter((i) => i.foundTitle).length,
-            artistsFound: items.filter((i) => i.foundArtist).length,
-            hasFilm: items.some((i) => i.film),
-            filmsFound: items.filter((i) => i.foundFilm).length,
-            score: items.reduce((sum, i) => sum + (i.points || 0), 0),
-            maxPoints: tracks.length * MAX_POINTS,
-            items,
-          })
-        );
+            nbTracks: tracks.length,
+            roundSeconds,
+            score: bilan.score,
+            maxPoints: bilan.maxPoints,
+            titlesFound: bilan.titlesFound,
+            artistsFound: bilan.artistsFound,
+            filmsFound: bilan.filmsFound,
+            items: items.map((i) => ({
+              nom: i.name,
+              artiste: i.artists,
+              film: i.film || null,
+              points: i.points,
+            })),
+          }),
+        }).catch(() => {});
+
         router.push("/results");
       } else {
         setRoundIndex((i) => i + 1);
