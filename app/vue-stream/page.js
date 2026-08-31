@@ -153,22 +153,56 @@ export default function VueStreamSolo() {
         <span className="text-5xl font-black text-jenny-light">{etat.score}</span>
       </div>
 
-      {/* Derniers morceaux passés */}
+      {/* Historique des morceaux déjà passés — même présentation que dans le jeu,
+          simplement agrandie pour rester lisible à l'écran du direct. */}
       {etat.historique?.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-3">
-          {[...etat.historique].reverse().map((h, i) => (
-            <span
-              key={i}
-              className="rounded-xl bg-jenny-surface/60 px-4 py-2 text-lg ring-1 ring-jenny-line"
-            >
-              {h.nom}
-              <span
-                className={`ml-2 font-black ${h.points > 0 ? "text-jenny-light" : "text-zinc-500"}`}
+        <div className="w-full max-w-6xl">
+          <div className="mb-2 text-base font-bold uppercase tracking-wide text-zinc-500">
+            Historique
+          </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {[...etat.historique].reverse().map((h, i) => (
+              <div
+                key={i}
+                className="flex shrink-0 items-center gap-3 rounded-2xl bg-zinc-900 px-4 py-3 text-left ring-1 ring-jenny-line"
               >
-                {h.points > 0 ? `+${h.points}` : "0"}
-              </span>
-            </span>
-          ))}
+                {h.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={h.image}
+                    alt=""
+                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-xl">
+                    🎵
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="max-w-[230px] truncate text-lg font-bold">
+                    {h.nom}
+                  </div>
+                  {h.film && (
+                    <div className="max-w-[230px] truncate text-base font-semibold text-jenny-light">
+                      🎬 {h.film}
+                    </div>
+                  )}
+                  <div className="max-w-[230px] truncate text-base text-zinc-400">
+                    {h.artistes}
+                  </div>
+                </div>
+                <div
+                  className={`shrink-0 rounded-full px-3 py-1 text-base font-black ${
+                    h.points > 0
+                      ? "bg-jenny text-white"
+                      : "bg-zinc-800 text-zinc-400"
+                  }`}
+                >
+                  {h.points > 0 ? `+${h.points}` : "0"}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </main>

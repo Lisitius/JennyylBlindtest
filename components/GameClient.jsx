@@ -546,6 +546,7 @@ export default function GameClient() {
         artistes: h.artists,
         film: h.film || null,
         points: h.points,
+        image: h.image || null,
       })),
     };
     try {
