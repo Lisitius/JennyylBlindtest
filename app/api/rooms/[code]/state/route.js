@@ -6,6 +6,7 @@ import {
   joueursDuSalon,
   avancerSiNecessaire,
   vuePublique,
+  historiquePublic,
   champsADeviner,
   repartition,
   pointsPartie,
@@ -119,6 +120,8 @@ export async function GET(req, { params }) {
       estAnimateur: j.user_id === salon.host_id,
     })),
     morceau: vuePublique(salon, morceau, { estHote, revele }),
+    // Seuls les morceaux déjà joués : rien ne fuite sur la suite de la partie.
+    historique: historiquePublic(salon),
     aArbitrer,
   });
 }

@@ -52,8 +52,54 @@ export default function VueStream() {
       )
     : 0;
 
+  // Les six derniers morceaux, du plus récent au plus ancien.
+  const historique = [...(etat.historique || [])].slice(-6).reverse();
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-10 py-8">
+      {/* Historique des morceaux déjà passés — même présentation qu'en solo. */}
+      {historique.length > 0 && (
+        <div className="w-full max-w-6xl">
+          <div className="mb-2 text-center text-base font-bold uppercase tracking-wide text-zinc-500">
+            Historique
+          </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {historique.map((h, i) => (
+              <div
+                key={i}
+                className="flex shrink-0 items-center gap-3 rounded-2xl bg-zinc-900 px-4 py-3 text-left ring-1 ring-jenny-line"
+              >
+                {h.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={h.image}
+                    alt=""
+                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-xl">
+                    🎵
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="max-w-[230px] truncate text-lg font-bold">
+                    {h.nom}
+                  </div>
+                  {h.film && (
+                    <div className="max-w-[230px] truncate text-base font-semibold text-jenny-light">
+                      🎬 {h.film}
+                    </div>
+                  )}
+                  <div className="max-w-[230px] truncate text-base text-zinc-400">
+                    {h.artistes}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {etat.statut === "lobby" && (
         <>
           <p className="text-3xl font-bold text-zinc-300">
