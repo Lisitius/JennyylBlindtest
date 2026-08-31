@@ -512,6 +512,54 @@ export default function GameClient() {
   const artistPotential = partPoints(elapsedNow, currentSplit.artist, roundSeconds);
   const filmPotential = partPoints(elapsedNow, currentSplit.film, roundSeconds);
 
+  // ---- Vue stream : on publie l'état pour la fenêtre à capturer dans OBS ----
+  // Le titre et l'artiste ne sont publiés qu'à la révélation : la fenêtre
+  // destinée au direct ne doit jamais afficher la réponse en avance.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (phase === "loading" || phase === "error") return;
+    const enRevelation = phase === "reveal";
+    const etat = {
+      maj: Date.now(),
+      phase,
+      nom: playlistName,
+      manche: roundIndex + 1,
+      total: tracks?.length || 0,
+      secondes: Math.ceil(timeLeft),
+      duree: roundSeconds,
+      // Heure de fin absolue : la vue stream calcule le chrono toute seule,
+      // même si le navigateur ralentit cet onglet passé en arrière-plan.
+      finAbs: phase === "playing" ? Date.now() + timeLeft * 1000 : null,
+      score,
+      compteARebours: phase === "transition" ? countdown : null,
+      champs: { titre: needTitle, artiste: needArtist, film: withFilm },
+      trouve: { titre: foundTitle, artiste: foundArtist, film: foundFilm },
+      points: { titre: titlePotential, artiste: artistPotential, film: filmPotential },
+      resultat: enRevelation ? lastResult : null,
+      gagnes: enRevelation ? lastPoints : null,
+      morceau:
+        enRevelation && track
+          ? { nom: track.name, artistes: track.artists, film: track.film || null, image: track.image }
+          : null,
+      historique: (history || []).slice(-6).map((h) => ({
+        nom: h.name,
+        artistes: h.artists,
+        film: h.film || null,
+        points: h.points,
+      })),
+    };
+    try {
+      window.localStorage.setItem("blindtest-solo-stream", JSON.stringify(etat));
+    } catch {
+      // stockage indisponible : la vue stream ne sera pas alimentée
+    }
+  }, [
+    phase, roundIndex, timeLeft, score, countdown, lastResult, lastPoints,
+    foundTitle, foundArtist, foundFilm, track, tracks, history, playlistName,
+    roundSeconds, needTitle, needArtist, withFilm,
+    titlePotential, artistPotential, filmPotential,
+  ]);
+
   // ================= RENDU =================
 
   if (phase === "error") {
@@ -588,7 +636,16 @@ export default function GameClient() {
             {roundIndex + 1} / {tracks.length}
           </span>
         </span>
-        <span className="whitespace-nowrap">
+        <span className="flex items-center gap-3 whitespace-nowrap">
+          <a
+            href="/vue-stream"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Ouvrir l'affichage à capturer dans OBS"
+            className="rounded-full bg-zinc-800 px-3 py-2 text-xs font-bold text-zinc-300 transition hover:bg-zinc-700"
+          >
+            📺 Vue stream
+          </a>
           Score : <span className="text-jenny">{score}</span>
         </span>
       </div>

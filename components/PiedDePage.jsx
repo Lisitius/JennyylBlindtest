@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 // Bandeau discret affiché en bas du site.
 // Masqué pendant les parties : l'écran de jeu doit rester dégagé.
-const SANS_BANDEAU = ["/game", "/salon/"];
+const SANS_BANDEAU = ["/game", "/salon/", "/vue-stream"];
 
 export default function PiedDePage() {
   const chemin = usePathname() || "";

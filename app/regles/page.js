@@ -219,6 +219,10 @@ export default function ReglesPage() {
             supabase.com
           </a>
         </Ligne>
+        <Ligne label="Localisation des données">
+          Londres, Royaume-Uni (région <em>eu-west-2</em>) — pays reconnu comme
+          offrant un niveau de protection adéquat par la Commission européenne.
+        </Ligne>
 
         <Titre>Extraits musicaux</Titre>
         <p>
@@ -383,10 +387,20 @@ export default function ReglesPage() {
           — envoi de l'email de réinitialisation de mot de passe, le cas échéant
         </p>
 
-        <Titre>Transferts hors Union européenne</Titre>
+        <Titre>Lieu d'hébergement et transferts</Titre>
         <p>
-          Certains prestataires ci-dessus sont établis hors de l'Union
-          européenne. Ces transferts sont encadrés par les{" "}
+          <strong className="text-white">
+            Les données de compte (pseudo, email, mot de passe haché, historique
+            de parties) sont stockées à Londres, au Royaume-Uni
+          </strong>{" "}
+          (région <em>eu-west-2</em> de Supabase). Le Royaume-Uni bénéficie d'une
+          décision d'adéquation de la Commission européenne : les transferts vers
+          ce pays sont autorisés sans formalité supplémentaire, le niveau de
+          protection étant reconnu comme équivalent à celui du RGPD.
+        </p>
+        <p>
+          L'hébergeur du site (Vercel Inc.) est établi aux États-Unis. Les
+          transferts éventuels vers ce pays sont encadrés par les{" "}
           <strong className="text-white">clauses contractuelles types</strong> de
           la Commission européenne et, le cas échéant, par le{" "}
           <em>EU-U.S. Data Privacy Framework</em>. Les politiques de

@@ -23,3 +23,6 @@ yarn-error.log*
 # Divers
 .DS_Store
 .vercel
+
+# Message de commit temporaire
+COMMIT_MSG.txt
